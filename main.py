@@ -45,9 +45,9 @@ ho = hungarian_optimizer.HungarianOptimizer()
 pipeline = Pipeline(detector, classifiers, ho, means_det, means_rec)
 
 # dataset
-with open('S2TLD/perfect_cases.bin', 'rb') as f:
-    perfect_cases = pickle.load(f)
-print(f'Number of cases: {len(perfect_cases)}')
+# with open('S2TLD/perfect_cases.bin', 'rb') as f:
+#     perfect_cases = pickle.load(f)
+# print(f'Number of cases: {len(perfect_cases)}')
 
 # run the pipeline
 nonexistence = [1697, 1908, 2950]
@@ -57,12 +57,13 @@ with torch.no_grad():
     for case in range(4567):
         if case in nonexistence:
             continue
-        image_file = 'pictures/{:06d}.jpg'.format(case)
-        annot_file = 'annotations/{:06d}.xml'.format(case)
+        folder = 'normal_1' if case <= 778 else 'normal_2'
+        image_file = 'S2TLD/{}/JPEGImages/{:06d}.jpg'.format(folder, case)
+        annot_file = 'S2TLD/{}/Annotations/{:06d}.xml'.format(folder, case)
         image = torch.from_numpy(cv2.imread(image_file)).to(device)
         boxes = utils.readxml(annot_file)
-        detection, assignments = pipeline(image, boxes)
-        detections.append((detection, assignments))
+        valid_detections, recognitions, assignments, invalid_detections = pipeline(image, boxes)
+        detections.append((valid_detections, recognitions, assignments, invalid_detections))
         if case % 100 == 0:
             print(f'Progress: {case}')
     t2 = time.perf_counter()
@@ -70,17 +71,17 @@ with torch.no_grad():
 with open('detections.bin', 'wb') as f:
     pickle.dump(detections, f)
 # run the adversarial
-obj_fn = create_objective(objective, 5)
-t1 = time.perf_counter()
-for i, case in enumerate(perfect_cases):
-    image_file = 'S2TLD/JPEGImages/{:06d}.jpg'.format(case)
-    annot_file = 'S2TLD/Annotations/{:06d}.xml'.format(case)
-    image = torch.from_numpy(cv2.imread(image_file)).to(device)
-    boxes = utils.readxml(annot_file)
-    adv_img = adversarial(pipeline, image, boxes, obj_fn, 3, 16)
-    if adv_img == None:
-        print(i)
-    if i % 100 == 0:
-        print(f'Progress: {i}')
-t2 = time.perf_counter()
-print(f"Run all the adversarial in {t2-t1:0.4f} seconds!")
+# obj_fn = create_objective(objective, 5)
+# t1 = time.perf_counter()
+# for i, case in enumerate(perfect_cases):
+#     image_file = 'S2TLD/JPEGImages/{:06d}.jpg'.format(case)
+#     annot_file = 'S2TLD/Annotations/{:06d}.xml'.format(case)
+#     image = torch.from_numpy(cv2.imread(image_file)).to(device)
+#     boxes = utils.readxml(annot_file)
+#     adv_img = adversarial(pipeline, image, boxes, obj_fn, 3, 16)
+#     if adv_img == None:
+#         print(i)
+#     if i % 100 == 0:
+#         print(f'Progress: {i}')
+# t2 = time.perf_counter()
+# print(f"Run all the adversarial in {t2-t1:0.4f} seconds!")

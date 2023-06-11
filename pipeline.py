@@ -37,24 +37,33 @@ class Pipeline(nn.Module):
         for i, detection in enumerate(detections):
             det_box = detection[1:5].type(torch.long)
             tl_type = torch.argmax(detection[5:]).item() - 1
-            if tl_type == -1: # unknown type will not be recognized
-                recognition = torch.ones(1, 4, device=device) * -1
-                recognitions.append(recognition)
-                continue
+            # if tl_type == -1: # unknown type will not be recognized
+            #     recognition = torch.ones(1, 4, device=device) * -1
+            #     recognitions.append(recognition)
+            #     continue
             recognizer, shape = self.classifiers[tl_type]
             input = preprocess4rec(img, det_box, shape, self.means_rec)
             output = recognizer(input.permute(2, 0, 1).unsqueeze(0))
             assert output.shape[0] == 1
             recognitions.append(output[0])
+        if len(recognitions) == 0:
+            return torch.empty([0, 4], device=device)
         return torch.vstack(recognitions)
     def forward(self, img, boxes):
-        """img should not substract the means, if there's a perturbation, the perturbation should be added to the img"""
+        """img should not substract the means, if there's a perturbation, the perturbation should be added to the img
+        return valid_detections, recognitions, assignments, invalid_detections
+        """
         detections = self.detect(img, boxes)
         if len(detections) == 0:
-            return torch.empty([0, 13], device=device), None
-        assignments = select_tls(self.ho, detections, boxes2projections(boxes))
+            return torch.empty([0, 9], device=device), None, None, None
+        tl_types = torch.argmax(detections[:, 5:], dim=1)
+        valid_inds = tl_types != 0
+        invalid_inds = tl_types == 0
+        valid_detections = detections[valid_inds]
+        invalid_detections = detections[invalid_inds]
+        assignments = select_tls(self.ho, valid_detections, boxes2projections(boxes))
         # in theory, we only recognize the selected TLs. 
         # however, for attacking, it would be better to gain more information
         # so we recognize all. It will be slower but it's fine.
-        recognitions = self.recognize(img, detections)
-        return torch.hstack([detections, recognitions]), assignments
+        recognitions = self.recognize(img, valid_detections)
+        return valid_detections, recognitions, assignments, invalid_detections
