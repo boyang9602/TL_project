@@ -31,7 +31,7 @@ for i, (valid_detections, recognitions, assignments, invalid_detections) in enum
     print('assignments')
     print(assignments)
     if len(valid_detections) == 0 or len(boxes) == 0:
-        print('no detection, pass')
+        print('no valid detection, pass')
         continue
     ious = utils.IoU_multi(valid_detections[:, 1:5].cpu(), torch.tensor(boxes))
     print('dt -> gt, ious: ')
@@ -41,8 +41,8 @@ for i, (valid_detections, recognitions, assignments, invalid_detections) in enum
     values = maxes.values
     indices = maxes.indices
     matched_ious = []
-    flag = True
-    color_flag = True
+    flag = True # if all detections are TP
+    color_flag = True # if all colors are correct
     for j, idx in enumerate(indices):
         dt = valid_detections[j]
         color_scores = recognitions[j]
@@ -53,7 +53,16 @@ for i, (valid_detections, recognitions, assignments, invalid_detections) in enum
             color_flag = False
         iou = values[j]
         matched_ious.append(iou)
-    if len(matched_ious) > 0 and min(matched_ious) >= threshold and color_flag and (invalid_detections == None or len(invalid_detections) == 0): # every detection has an IoU >= threshold with at least one ground truth, so 100% precision
+    # precision = TP / (TP + FP)
+    # 1. matched_ious > 0 means both detections and ground truths are non empty
+    # 2. min matched_iou >= threshold means the detections are all TP in terms of the boxes
+    # 3. color_flag is True means the recognized color is correct
+    # 4. invalid_detections is None or len(invalid_detections) == 0 means that there is no FP
+    # In our words, all detections are TPs, its precision is 100%
+    if len(matched_ious) > 0 and \
+        min(matched_ious) >= threshold and \
+        color_flag and \
+        (invalid_detections == None or len(invalid_detections) == 0):
         perfect_precision.append((i, i+cursor))
     else:
         flag = False
@@ -77,12 +86,20 @@ for i, (valid_detections, recognitions, assignments, invalid_detections) in enum
             color_flag2 = False
         iou = values[j]
         matched_ious.append(iou)
-    if len(matched_ious) > 0 and min(matched_ious) >= threshold and color_flag2: # every ground_truth has an IoU >= threshold with at least one detection, so 100% recall
+    # recall = TP / (TP + FN)
+    # 1. matched_ious > 0 means both detections and ground truths are non empty
+    # 2. min matched_iou >= threshold means all ground_truths have a corresponding TP detection in terms of the boxes, i.e. FN == 0
+    # 3. color_flag2 is True means all the recognized colors is correct
+    # every ground_truth has an IoU >= threshold with at least one detection, so 100% recall
+    if len(matched_ious) > 0 and \
+        min(matched_ious) >= threshold and \
+        color_flag2: 
         perfect_recall.append((i, i+cursor))
     else:
         flag = False
 
-    if flag and color_flag and color_flag2 and len(valid_detections) == len(boxes) and (invalid_detections == None or len(invalid_detections) == 0):
+    # flag means 100% precision and recall, i.e., no FP and FN
+    if flag:
         perfect.append((i, i+cursor))
 
 print(len(perfect_precision), len(perfect_recall), len(perfect))

@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 import torch
 device = "cuda" if torch.cuda.is_available() else "cpu"
 fake_image = torch.empty([720, 1280, 3])
+TL_TYPE_TEXTS = ['VERT', 'QUAD', 'HORI']
+REC_COLORS = ["off", "red", "yellow", "green"]
 
 def readxml2(filename):
     """return the bounding boxes of the given annotation file in xml format"""
@@ -64,7 +66,7 @@ def IoG_single(box1, box2):
 
     return inter / a1
 
-def viz_pipeline_results(image, results=None, projections=None, fig_width=20.48, fig_height=15.36):
+def viz_pipeline_results(image, valid_detections=None, recognitions=None, assignments=None, invalid_detections=None, projections=None, fig_width=20.48, fig_height=15.36):
     """
       results is a n*13 tensor, n TL instances, 
       for each instance,
@@ -77,9 +79,8 @@ def viz_pipeline_results(image, results=None, projections=None, fig_width=20.48,
     fig.set_figwidth(fig_width)
     fig.set_figheight(fig_height)
     ax.imshow(image)
-    if results != None:
-        results, assignments = results
-        for i, result in enumerate(results):
+    if valid_detections != None:
+        for i, result in enumerate(valid_detections):
             xmin = int(result[1].item())
             ymin = int(result[2].item())
             xmax = int(result[3].item())
@@ -90,17 +91,27 @@ def viz_pipeline_results(image, results=None, projections=None, fig_width=20.48,
             rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, linewidth=2, edgecolor=edge_color, facecolor="none")
             ax.add_patch(rect)
             tl_type = torch.argmax(result[5:9]).item() - 1
-            assert tl_type >= 0 or result[9] < 0 # tl_type should be not unknown or the classification scores should be all -1s. 
-            if tl_type >= 0:
-                tl_color = torch.argmax(result[9:])
-                ax.text(xmin, ymin-2, f'{TL_TYPE_TEXTS[tl_type]}:{REC_COLORS[tl_color]}', c='r', fontsize='large')
+            assert tl_type >= 0 # tl_type should be not unknown or the classification scores should be all -1s. 
+            tl_color = torch.argmax(recognitions[i])
+            ax.text(xmin, ymin-2, f'{TL_TYPE_TEXTS[tl_type]}:{REC_COLORS[tl_color]}', c='r', fontsize='large')
+    if invalid_detections != None:
+        for i, result in enumerate(invalid_detections):
+            xmin = int(result[1].item())
+            ymin = int(result[2].item())
+            xmax = int(result[3].item())
+            ymax = int(result[4].item())
+            edge_color = 'r'
+            rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, linewidth=2, edgecolor=edge_color, facecolor="none")
+            ax.add_patch(rect)
     if projections != None:
         for projection in projections:
+            # print(projection)
             rect = patches.Rectangle((projection.x, projection.y), projection.w, projection.h, linewidth=2, edgecolor='c', facecolor="none")
             ax.add_patch(rect)
             coor = crop(image, projection)
             rect = patches.Rectangle((coor[0], coor[2]), coor[1] - coor[0], coor[3] - coor[2], linewidth=2, edgecolor='y', facecolor="none")
             ax.add_patch(rect)
+    return fig, ax
 
 def nms(boxes, thresh_iou):
     """

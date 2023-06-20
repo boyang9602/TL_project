@@ -16,9 +16,9 @@ main.py: the example code to run the inference and adversarial attack.
 eval.py: the code to evaluate the results of inference on S2TLD dataset. 
 models/: this folder contains the weights files of the networks. The example code below shows how to use them. 
 top200perfect.py: the code to find 200 pictures whose avg IoUs are top among all of the perfect cases. 
-perfect_precision2.bin: the list of picture where all the detected TLs are correct, i.e., they have a 100% precision for detection, setting IoU threshold to 0.5.
-perfect_recall2.bin: the list of picture where all the ground truth TLs are detected, i.e., they have a 100% recall for detection, setting IoU threshold to 0.5.
-perfect2.bin: the list of pictures which have a 100% precision and recall for detection, setting IoU threshold to 0.5.
+perfect_precision3.bin: the list of picture where all the detected TLs are correct, i.e., they have a 100% precision for detection, setting IoU threshold to 0.5.
+perfect_recall3.bin: the list of picture where all the ground truth TLs are detected, i.e., they have a 100% recall for detection, setting IoU threshold to 0.5.
+perfect3.bin: the list of pictures which have a 100% precision and recall for detection, setting IoU threshold to 0.5.
 top200avg.bin: the 200 pictures which are top 200 avg IoUs. 
 ```
 
