@@ -18,19 +18,27 @@ class Pipeline(nn.Module):
         self.means_det = means_det
         self.means_rec = means_rec
         self.ho = ho
+        self.rpn_attack_data = None
     def detect(self, image, boxes):
         """bboxes should be a list of list, each sub-list is like [xmin, ymin, xmax, ymax]"""
         detected_boxes = []
         projections = boxes2projections(boxes)
+        rpn_attack_data = []
         for projection in projections:
             img = image.clone().to(device)
             input = preprocess4det(img, projection, self.means_det)
-            output = self.detector(input.unsqueeze(0).permute(0, 3, 1, 2))
-            detected_boxes.append(output)
+            bboxes, rois, objness_scores = self.detector(input.unsqueeze(0).permute(0, 3, 1, 2))
+            detected_boxes.append(bboxes)
+            rois_w_scores = torch.hstack([rois, objness_scores])
+            rpn_attack_data.append(rois_w_scores)
         detections = restore_boxes_to_full_image(image, detected_boxes, projections)
         detections = torch.vstack(detections)
+        rpn_attack_data = restore_boxes_to_full_image(image, rpn_attack_data, projections)
+        rpn_attack_data = torch.vstack(rpn_attack_data)
         idxs = nms(detections[:, 1:5], 0.6)
         detections = detections[idxs]
+        idxs = nms(rpn_attack_data[:, 1:5], 0.6)
+        self.rpn_attack_data = rpn_attack_data[idxs]
         return detections
     def recognize(self, img, detections):
         recognitions = []

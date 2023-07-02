@@ -382,3 +382,40 @@ def test_IoU_multi():
             assert abs(ious[i, j] - iou) < 1e-8, f'box1: {box1}, box2: {box2}, iou_multi: {ious[i, j]}, iou_single: {iou}'
 for i in range(10):
     test_IoU_multi()
+
+def IoG_multi(boxes1, boxes2):
+    """
+    boxes1 should be (m, 4), boxes2 should be (n, 4)
+    The results will be (m, n), where i-th row is the area between the i-th element of boxes1 and all the elements of boxes2.
+    """
+    x11 = boxes1[:, None, :][:, :, 0]
+    x12 = boxes1[:, None, :][:, :, 2]
+    y11 = boxes1[:, None, :][:, :, 1]
+    y12 = boxes1[:, None, :][:, :, 3]
+
+    x21 = boxes2[None, :, :][:, :, 0]
+    x22 = boxes2[None, :, :][:, :, 2]
+    y21 = boxes2[None, :, :][:, :, 1]
+    y22 = boxes2[None, :, :][:, :, 3]
+
+    # let's say dt_* is (m, 4), gt_* is (n, 4)
+    # inter_* will be (m, n)
+    # each line has n numbers, which are the x1 or x2 for the intersection between i_th detection box and all the ground_truth boxes
+    inter_x1 = torch.max(x11, x21)
+    inter_x2 = torch.min(x12, x22)
+    inter_y1 = torch.max(y11, y21)
+    inter_y2 = torch.min(y12, y22)
+
+    width = inter_x2 - inter_x1 + 1
+    height = inter_y2 - inter_y1 + 1
+
+    width = torch.clamp(width, 0.0)
+    height = torch.clamp(height, 0.0)
+    inter = width * height
+
+    areas1 = (x12 - x11 + 1) * (y12 - y11 + 1)
+    areas2 = (x22 - x21 + 1) * (y22 - y21 + 1)
+    union = areas1 + areas2 - inter
+
+    iogs = inter / areas2
+    return iogs

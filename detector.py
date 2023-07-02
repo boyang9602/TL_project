@@ -158,11 +158,12 @@ class RPNProposalSSD(nn.Module):
         nms_indices = nms(proposals, self.nms_param['overlap_ratio'])
         # print(nms_indices, nms_indices.type())
         proposals = proposals[nms_indices][:self.nms_param['top_n']]
+        scores = scores[nms_indices][:self.nms_param['top_n']]
         proposals = torch.hstack([torch.zeros((proposals.shape[0], 1), device=device), proposals])
         if PERF_LOG:
             toc = time.perf_counter()
             print(f"RPN done in {toc-tic:0.4f} seconds!")
-        return proposals
+        return proposals, scores
 bbox_reg_param = {
     'bbox_mean': [0.000437, 0.002586, -0.123953, -0.081469],
     'bbox_std':  [0.126770, 0.095741,  0.317300,  0.281042]
@@ -593,12 +594,25 @@ class TFModel(nn.Module):
 
     def forward(self, x):
         rpn_cls_prob_reshape, rpn_bbox_pred, ft_add_left_right = self.feature_net(x)
-        rois = self.proposal(rpn_cls_prob_reshape, rpn_bbox_pred, im_info)
+        # print(rpn_cls_prob_reshape.shape, rpn_bbox_pred.shape, ft_add_left_right.shape)
+        rois, scores = self.proposal(rpn_cls_prob_reshape, rpn_bbox_pred, im_info)
+        # print(rois.shape)
         psroi_rois = self.psroi_rois(ft_add_left_right, rois)
+        # print(psroi_rois.shape)
         inner_rois = F.relu(self.inner_rois(psroi_rois.reshape(-1, 490)))
+        # print(inner_rois.shape)
         cls_score = self.cls_score(inner_rois)
         bbox_pred = self.bbox_pred(inner_rois)
         cls_score_softmax = F.softmax(cls_score, dim=1)
+        # print(cls_score.shape, cls_score_softmax.shape, bbox_pred.shape)
         bboxes = self.rcnn_proposal(cls_score_softmax, bbox_pred, rois, im_info)
+        # print(bboxes.shape)
 
-        return bboxes
+        return bboxes, rois, scores
+
+# torch.Size([1, 30, 34, 34]) torch.Size([1, 60, 34, 34]) torch.Size([1, 490, 34, 34])
+# torch.Size([52, 5])
+# torch.Size([52, 10, 49])
+# torch.Size([52, 2048])
+# torch.Size([52, 4]) torch.Size([52, 4]) torch.Size([52, 16])
+# torch.Size([3, 9])
