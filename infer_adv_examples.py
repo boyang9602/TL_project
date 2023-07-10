@@ -1,13 +1,14 @@
-import torch
+import os
+import json
 import cv2
-import time
+import torch
+import sys
+from utils import IoU_multi, IoG_multi, readxml2
 import pickle
 from detector import TFModel
 from recognizer import Recognizer
 from pipeline import Pipeline
 import hungarian_optimizer
-import utils
-import adversarial
 
 torch.manual_seed(42)
 
@@ -46,24 +47,25 @@ classifiers = [(vert_recognizer, (96, 32, 3)), (quad_recognizer, (64, 64, 3)), (
 ho = hungarian_optimizer.HungarianOptimizer()
 pipeline = Pipeline(detector, classifiers, ho, means_det, means_rec)
 
+with open('results/' + sys.argv[1] + '.bin', 'rb') as f:
+    results = pickle.load(f)
 with open('top200avg.bin', 'rb') as f:
     perfect_cases = pickle.load(f)
 
-def valid_scores(objectiveness_loss, box_loss):
-    return -objectiveness_loss
+all = []
 
-adv_imgs = []
-for i, (idx, case) in enumerate(perfect_cases):
-    # if i >= 5:
-    #     break
-    folder = 'normal_1' if case <= 778 else 'normal_2'
-    image_file = 'S2TLD/{}/JPEGImages/{:06d}.jpg'.format(folder, case)
-    annot_file = 'S2TLD/{}/Annotations/{:06d}.xml'.format(folder, case)
-    image = torch.from_numpy(cv2.imread(image_file)).to(device)
-    boxes, colors = utils.readxml2(annot_file)
-    objfn = adversarial.create_objective(adversarial.objective_rpn, valid_scores, None)
-    adv_img = adversarial.adversarial(pipeline, image, boxes, objfn, 3, 16, 5)
-    adv_imgs.append(adv_img)
+# IoU, IoG, color, location of all detections, the selected boxes
+for perfect_case, result in zip(perfect_cases, results):
+    folder = 'normal_1' if perfect_case[1] <= 778 else 'normal_2'
+    image_file = 'S2TLD/{}/JPEGImages/{:06d}.jpg'.format(folder, perfect_case[1])
+    annot_file = 'S2TLD/{}/Annotations/{:06d}.xml'.format(folder, perfect_case[1])
+    boxes, colors = readxml2(annot_file)
+    adv_image = result.cuda()
+    # ana_data = []
 
-with open('adv_imgs3.bin', 'wb') as f:
-    pickle.dump(adv_imgs, f)
+    # detect the adv_image
+    with torch.no_grad():
+        valid, rec, assignments, invalid = pipeline(adv_image.type(torch.long), boxes)
+        all.append((valid, rec, assignments, invalid))
+with open('results/' + sys.argv[1] + '_detections.bin', 'wb') as f:
+    pickle.dump(all, f)
