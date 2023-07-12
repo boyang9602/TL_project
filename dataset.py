@@ -124,11 +124,13 @@ if __name__ == '__main__':
     # 720
     ds720 = S2TLD720Dataset(sys.argv[1])
     assert len(ds720) == 4564
+    assert len(ds720.filelist) == len(set(ds720.filelist))
     for i in range(len(ds720)):
         _ = ds720[i]
 
     # 1080
     ds1080 = S2TLD1080Dataset(sys.argv[2])
     assert len(ds1080) == 1222
+    assert len(ds1080.filelist) == len(set(ds1080.filelist))
     for i in range(len(ds1080)):
         _ = ds1080[i]
