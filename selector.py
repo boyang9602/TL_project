@@ -2,11 +2,10 @@ import math
 import torch
 from utils import crop
 
-fake_image = torch.empty([720, 1280, 3])
 def calc_2d_gaussian_score(p1, p2, sigma1, sigma2):
     return math.exp(-0.5 * ((p1[0] - p2[0]) * (p1[0] - p2[0]) / (sigma1 * sigma1) + (p1[1] - p2[1]) * (p1[1] - p2[1]) / (sigma2 * sigma2)))
 
-def select_tls(ho, detections, projections):
+def select_tls(ho, detections, projections, item_shape):
     """
     detections shape is [n, 9]
     """
@@ -38,7 +37,7 @@ def select_tls(ho, detections, projections):
         if assignment[0] >= len(projections) or assignment[1] >= len(detections):
             continue
         # get the crop 
-        coors = crop(fake_image, projections[assignment[0]]) # xmin, xmax, ymin, ymax
+        coors = crop(torch.empty(item_shape), projections[assignment[0]]) # xmin, xmax, ymin, ymax
         # get the detection
         detection = detections[assignment[1]] # xmin, ymin, xmax, ymax
         # check if the detection is inside the crop

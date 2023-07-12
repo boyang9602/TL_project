@@ -35,6 +35,7 @@ class Pipeline(nn.Module):
         detections = torch.vstack(detections)
         rpn_attack_data = restore_boxes_to_full_image(image, rpn_attack_data, projections)
         rpn_attack_data = torch.vstack(rpn_attack_data)
+        self.rpn_attack_data = rpn_attack_data
         idxs = nms(detections[:, 1:5], 0.6)
         detections = detections[idxs]
         idxs = nms(rpn_attack_data[:, 1:5], 0.6)
@@ -69,7 +70,7 @@ class Pipeline(nn.Module):
         invalid_inds = tl_types == 0
         valid_detections = detections[valid_inds]
         invalid_detections = detections[invalid_inds]
-        assignments = select_tls(self.ho, valid_detections, boxes2projections(boxes))
+        assignments = select_tls(self.ho, valid_detections, boxes2projections(boxes), img.shape)
         # in theory, we only recognize the selected TLs. 
         # however, for attacking, it would be better to gain more information
         # so we recognize all. It will be slower but it's fine.

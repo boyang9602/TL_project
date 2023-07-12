@@ -2,28 +2,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import yaml
 import csv
-import xml.etree.ElementTree as ET
 import torch
 device = "cuda" if torch.cuda.is_available() else "cpu"
-fake_image = torch.empty([720, 1280, 3])
 TL_TYPE_TEXTS = ['VERT', 'QUAD', 'HORI']
 REC_COLORS = ["off", "red", "yellow", "green"]
-
-def readxml2(filename):
-    """return the bounding boxes of the given annotation file in xml format"""
-    bboxes = []
-    colors = []
-    tree = ET.parse(filename)
-    objs = tree.findall("object")
-    for obj in objs:
-        xmin = int(float(obj.find("bndbox/xmin").text))
-        xmax = int(float(obj.find("bndbox/xmax").text))
-        ymin = int(float(obj.find("bndbox/ymin").text))
-        ymax = int(float(obj.find("bndbox/ymax").text))
-        bboxes.append([xmin, ymin, xmax, ymax])
-        color = obj.find('name').text
-        colors.append(color)
-    return bboxes, colors
 
 def IoU_single(box1, box2):
     """
@@ -288,19 +270,6 @@ def preprocess4rec(image, bbox, shape, means=None):
 
 def bgr2rgb(image):
     return image[:,:,[2,1,0]]
-
-def readxml(filename):
-    """return the bounding boxes of the given annotation file in xml format"""
-    bboxes = []
-    tree = ET.parse(filename)
-    objs = tree.findall("object")
-    for obj in objs:
-        xmin = int(float(obj.find("bndbox/xmin").text))
-        xmax = int(float(obj.find("bndbox/xmax").text))
-        ymin = int(float(obj.find("bndbox/ymin").text))
-        ymax = int(float(obj.find("bndbox/ymax").text))
-        bboxes.append([xmin, ymin, xmax, ymax])
-    return bboxes
 
 def restore_boxes_to_full_image(image, detections, projections):
     """
