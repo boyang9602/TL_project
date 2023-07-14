@@ -1,19 +1,18 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
-from math import ceil, floor
 from utils import nms
-device = "cuda" if torch.cuda.is_available() else "cpu"
+import time
 PERF_LOG = False
 
 # detection
 class RPNProposalSSD(nn.Module):
-    def __init__(self, bbox_reg_param, detection_output_ssd_param):
+    def __init__(self, bbox_reg_param, detection_output_ssd_param, device=None):
         super(RPNProposalSSD, self).__init__()
+        self.device = device
         # read box params
-        self.bbox_mean = torch.tensor(bbox_reg_param['bbox_mean'], device=device)
-        self.bbox_std = torch.tensor(bbox_reg_param['bbox_std'], device=device)
+        self.bbox_mean = torch.tensor(bbox_reg_param['bbox_mean'], device=self.device)
+        self.bbox_std = torch.tensor(bbox_reg_param['bbox_std'], device=self.device)
         # read detection param
         self.anchor_stride = detection_output_ssd_param['heat_map_a']
         self.gen_anchor_param = detection_output_ssd_param['gen_anchor_param']
@@ -29,8 +28,8 @@ class RPNProposalSSD(nn.Module):
         """
         anchor is represented by 4 pts (xmin, ymin, xmax, ymax)
         """
-        anchor_widths = torch.tensor(self.gen_anchor_param['anchor_widths'], device=device)
-        anchor_heights = torch.tensor(self.gen_anchor_param['anchor_heights'], device=device)
+        anchor_widths = torch.tensor(self.gen_anchor_param['anchor_widths'], device=self.device)
+        anchor_heights = torch.tensor(self.gen_anchor_param['anchor_heights'], device=self.device)
         xmins = - 0.5 * (anchor_widths - 1)
         xmaxs = + 0.5 * (anchor_widths - 1)
         ymins = - 0.5 * (anchor_heights - 1)
@@ -54,7 +53,7 @@ class RPNProposalSSD(nn.Module):
         pred_w = torch.exp(dw) * widths
         pred_h = torch.exp(dh) * heights
 
-        pred_boxes = torch.zeros(deltas.shape, dtype=deltas.dtype, device=device)
+        pred_boxes = torch.zeros(deltas.shape, dtype=deltas.dtype, device=self.device)
         # x1
         pred_boxes[:, 0] = pred_ctr_x - 0.5 * (pred_w - 1)
         # y1
@@ -115,8 +114,8 @@ class RPNProposalSSD(nn.Module):
         anchor_size = num_anchor * 4
 
         # Enumerate all shifts
-        shift_x = torch.arange(width, device=device) * self.anchor_stride
-        shift_y = torch.arange(height, device=device) * self.anchor_stride
+        shift_x = torch.arange(width, device=self.device) * self.anchor_stride
+        shift_y = torch.arange(height, device=self.device) * self.anchor_stride
         shift_x, shift_y = torch.meshgrid(shift_x, shift_y, indexing='ij')
         shifts = torch.vstack((shift_y.ravel(), shift_x.ravel(), shift_y.ravel(), shift_x.ravel())).transpose(1, 0)
         
@@ -159,7 +158,7 @@ class RPNProposalSSD(nn.Module):
         # print(nms_indices, nms_indices.type())
         proposals = proposals[nms_indices][:self.nms_param['top_n']]
         scores = scores[nms_indices][:self.nms_param['top_n']]
-        proposals = torch.hstack([torch.zeros((proposals.shape[0], 1), device=device), proposals])
+        proposals = torch.hstack([torch.zeros((proposals.shape[0], 1), device=self.device), proposals])
         if PERF_LOG:
             toc = time.perf_counter()
             print(f"RPN done in {toc-tic:0.4f} seconds!")
@@ -191,8 +190,9 @@ detection_output_ssd_param = {
     }
 }
 class DFMBPSROIAlign(nn.Module):
-    def __init__(self, dfmb_psroi_pooling_param):
+    def __init__(self, dfmb_psroi_pooling_param, device=None):
         super(DFMBPSROIAlign, self).__init__()
+        self.device = device
         self.pooled_height = dfmb_psroi_pooling_param['pooled_height']
         self.pooled_width = dfmb_psroi_pooling_param['pooled_width']
         self.anchor_stride = dfmb_psroi_pooling_param['heat_map_a']
@@ -233,8 +233,8 @@ class DFMBPSROIAlign(nn.Module):
                 hstart = torch.floor(roi_start_h + ph * bin_size_h)
                 wstart = torch.floor(roi_start_w + pw * bin_size_w)
                 
-                sum_ = torch.zeros((wstart.shape[0], ft_add_left_right.shape[0]), device=device)
-                count = torch.zeros(wstart.shape, device=device)
+                sum_ = torch.zeros((wstart.shape[0], ft_add_left_right.shape[0]), device=self.device)
+                count = torch.zeros(wstart.shape, device=self.device)
                 for ih in range(self.sample_per_part):  
                     for iw in range(self.sample_per_part):
                         # w and h are the samples
@@ -257,10 +257,10 @@ class DFMBPSROIAlign(nn.Module):
                         dist_y = h - y1
 
                         assert x1.shape == x2.shape and x1.shape == y1.shape and x1.shape == y2.shape
-                        value11 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=device)
-                        value12 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=device)
-                        value21 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=device)
-                        value22 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=device)
+                        value11 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
+                        value12 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
+                        value21 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
+                        value22 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
 
                         value11[x1valid * y1valid, :] = ft_add_left_right[:, ph, pw, y1[x1valid * y1valid], x1[x1valid * y1valid]].permute(1, 0)
                         value12[x1valid * y2valid, :] = ft_add_left_right[:, ph, pw, y2[x1valid * y2valid], x1[x1valid * y2valid]].permute(1, 0)
@@ -273,10 +273,10 @@ class DFMBPSROIAlign(nn.Module):
                                 + dist_x.unsqueeze(1) * dist_y.unsqueeze(1) * value22
                         sum_[keep, :] += value
                         count[keep] += 1
-                result = torch.zeros(sum_.shape, device=device)
+                result = torch.zeros(sum_.shape, device=self.device)
                 result[count != 0, :] = sum_[count != 0, :] / count[count != 0].unsqueeze(1)
                 pooling.append(result)
-        ret = torch.empty(rois.shape[0], 10, 49, device=device)
+        ret = torch.empty(rois.shape[0], 10, 49, device=self.device)
         for i, result in enumerate(pooling):
             ret[:,:,i] = result
         if PERF_LOG:
@@ -317,10 +317,11 @@ rcnn_detection_output_ssd_param = {
     }
 }
 class RCNNProposal(nn.Module):
-    def __init__(self, bbox_reg_param, detection_output_ssd_param):
+    def __init__(self, bbox_reg_param, detection_output_ssd_param, device=None):
         super(RCNNProposal, self).__init__()
-        self.bbox_mean = torch.tensor(bbox_reg_param['bbox_mean'], device=device)
-        self.bbox_std = torch.tensor(bbox_reg_param['bbox_std'], device=device)
+        self.device = device
+        self.bbox_mean = torch.tensor(bbox_reg_param['bbox_mean'], device=self.device)
+        self.bbox_std = torch.tensor(bbox_reg_param['bbox_std'], device=self.device)
         self.num_class = detection_output_ssd_param['num_class']
         self.rpn_proposal_output_score = detection_output_ssd_param['rpn_proposal_output_score']
         self.regress_agnostic = detection_output_ssd_param['regress_agnostic']
@@ -351,7 +352,7 @@ class RCNNProposal(nn.Module):
         pred_w = torch.exp(dw) * widths[:, None]
         pred_h = torch.exp(dh) * heights[:, None]
 
-        pred_boxes = torch.zeros(deltas.shape, dtype=deltas.dtype, device=device)
+        pred_boxes = torch.zeros(deltas.shape, dtype=deltas.dtype, device=self.device)
         # x1
         pred_boxes[:, :, 0] = pred_ctr_x - 0.5 * (pred_w - 1)
         # y1
@@ -409,7 +410,7 @@ class RCNNProposal(nn.Module):
         # So the simplification should not have any affects to the results
         cls_score_softmax = cls_score_softmax[indices]
         decoded_bbox_pred = decoded_bbox_pred[indices]
-        decoded_bbox_pred = decoded_bbox_pred.reshape(-1, 4)[argmaxes[indices] + torch.arange(0, decoded_bbox_pred.shape[0], device=device) * 4]
+        decoded_bbox_pred = decoded_bbox_pred.reshape(-1, 4)[argmaxes[indices] + torch.arange(0, decoded_bbox_pred.shape[0], device=self.device) * 4]
         filtered_count = decoded_bbox_pred.shape[0]
 
         w = decoded_bbox_pred[:, 2] - decoded_bbox_pred[:, 0] + 1
@@ -429,7 +430,7 @@ class RCNNProposal(nn.Module):
         pre_nms_bbox = decoded_bbox_pred[top_indices]
         pre_nms_all_probs = cls_score_softmax[top_indices]
         argmaxes = torch.argmax(pre_nms_all_probs[:,1:], 1) + 1
-        pre_nms_score = pre_nms_all_probs.flatten()[argmaxes + 4 * torch.arange(0, len(top_indices), device=device)]
+        pre_nms_score = pre_nms_all_probs.flatten()[argmaxes + 4 * torch.arange(0, len(top_indices), device=self.device)]
         
         # nms_indices = torchvision.ops.nms(pre_nms_bbox, pre_nms_score, self.nms_param['overlap_ratio'])
         # nms_indices = self.nms(pre_nms_bbox, self.nms_param['overlap_ratio'])
@@ -439,7 +440,7 @@ class RCNNProposal(nn.Module):
         if PERF_LOG:
             toc = time.perf_counter()
             print(f"RCNN done in {toc-tic:0.4f} seconds!")
-        return torch.hstack([torch.zeros((boxes.shape[0], 1), device=device), boxes, pre_nms_all_probs[nms_indices][:self.nms_param['top_n']]])
+        return torch.hstack([torch.zeros((boxes.shape[0], 1), device=self.device), boxes, pre_nms_all_probs[nms_indices][:self.nms_param['top_n']]])
 im_info = torch.tensor([270, 270])
 
 class ConvBNScale(nn.Module):
@@ -582,15 +583,16 @@ class TFModel(nn.Module):
     """
     The entire network for traffic light detection.
     """
-    def __init__(self):
+    def __init__(self, device=None):
         super().__init__()
-        self.feature_net = FeatureNet()
-        self.proposal = RPNProposalSSD(bbox_reg_param, detection_output_ssd_param)
-        self.psroi_rois = DFMBPSROIAlign(dfmb_psroi_pooling_param)
-        self.inner_rois = nn.Linear(in_features=10 * 7 * 7, out_features=2048, bias=True)
-        self.cls_score = nn.Linear(in_features=2048, out_features=4, bias=True)
-        self.bbox_pred = nn.Linear(in_features=2048, out_features=16, bias=True)
-        self.rcnn_proposal = RCNNProposal(rcnn_bbox_reg_param, rcnn_detection_output_ssd_param)
+        self.device = device
+        self.feature_net = FeatureNet().to(device)
+        self.proposal = RPNProposalSSD(bbox_reg_param, detection_output_ssd_param, device=self.device)
+        self.psroi_rois = DFMBPSROIAlign(dfmb_psroi_pooling_param, device=self.device)
+        self.inner_rois = nn.Linear(in_features=10 * 7 * 7, out_features=2048, bias=True, device=self.device)
+        self.cls_score = nn.Linear(in_features=2048, out_features=4, bias=True, device=self.device)
+        self.bbox_pred = nn.Linear(in_features=2048, out_features=16, bias=True, device=self.device)
+        self.rcnn_proposal = RCNNProposal(rcnn_bbox_reg_param, rcnn_detection_output_ssd_param, device=self.device)
 
     def forward(self, x):
         rpn_cls_prob_reshape, rpn_bbox_pred, ft_add_left_right = self.feature_net(x)

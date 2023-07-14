@@ -24,13 +24,14 @@ def readxml2(filename):
 class S2TLD720Dataset(torch.utils.data.Dataset):
     """S2TLD720 dataset."""
 
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, device=None):
         """
         Arguments:
             root_dir (string): Directory of S2TLD 720 *1280 dataset.
         """
         self.root_dir = root_dir
         self.filelist = []
+        self.device = device
         with open(f'{root_dir}/filelist.txt', 'r') as f:
             lines = f.readlines()
             for line in lines:
@@ -47,7 +48,7 @@ class S2TLD720Dataset(torch.utils.data.Dataset):
         annot_file = '{}/{}/Annotations/{}.xml'.format(self.root_dir, folder, filename)
         boxes, colors = readxml2(annot_file)
         return {
-            'image': torch.from_numpy(cv2.imread(image_file)),
+            'image': torch.from_numpy(cv2.imread(image_file)).to(self.device),
             'boxes': boxes,
             'colors': colors,
             'folder': folder,
@@ -61,13 +62,14 @@ class S2TLD720Dataset(torch.utils.data.Dataset):
 class S2TLD1080Dataset(torch.utils.data.Dataset):
     """S2TLD1080 dataset."""
 
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, device=None):
         """
         Arguments:
             root_dir (string): Directory of S2TLD 1080 * 1920 dataset.
         """
         self.root_dir = root_dir
         self.filelist = []
+        self.device = device
         with open(f'{root_dir}/filelist.txt', 'r') as f:
             lines = f.readlines()
             for line in lines:
@@ -84,7 +86,7 @@ class S2TLD1080Dataset(torch.utils.data.Dataset):
         annot_file = '{}/Annotations/{}.xml'.format(self.root_dir, filename)
         boxes, colors = readxml2(annot_file)
         return {
-            'image': torch.from_numpy(cv2.imread(image_file)),
+            'image': torch.from_numpy(cv2.imread(image_file)).to(self.device),
             'boxes': boxes,
             'colors': colors,
             'filename': filename
@@ -93,6 +95,14 @@ class S2TLD1080Dataset(torch.utils.data.Dataset):
     @staticmethod
     def item_shape():
         return 1080, 1920, 3
+    
+def get_dataset(name, device=None):
+    if name == 'S2TLD720':
+        return S2TLD720Dataset(name, device)
+    elif name == 'S2TLD1080':
+        return S2TLD1080Dataset(name, device)
+    else:
+        raise "No such dataset"
     
 if __name__ == '__main__':
     """

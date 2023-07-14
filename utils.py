@@ -3,7 +3,6 @@ import matplotlib.patches as patches
 import yaml
 import csv
 import torch
-device = "cuda" if torch.cuda.is_available() else "cpu"
 TL_TYPE_TEXTS = ['VERT', 'QUAD', 'HORI']
 REC_COLORS = ["off", "red", "yellow", "green"]
 
@@ -119,7 +118,7 @@ def nms(boxes, thresh_iou):
     # initialise an empty list for 
     # filtered prediction boxes
     keep_inds = []
-    idxs = torch.arange(boxes.shape[0]).to(device)
+    idxs = torch.arange(boxes.shape[0]).to(boxes.device)
     while len(idxs) > 0:
         idx = idxs[0]
         # push S in filtered predictions list
@@ -199,7 +198,7 @@ def ResizeGPU(src, dst, means):
     # for i in range(0, dst.shape[0]):
     #     dst_y[i,:] = i
     ####################################################################
-    dst_x, dst_y = torch.meshgrid([torch.arange(dst.shape[1], device=device), torch.arange(dst.shape[0], device=device)], indexing="xy")
+    dst_x, dst_y = torch.meshgrid([torch.arange(dst.shape[1], device=src.device), torch.arange(dst.shape[0], device=src.device)], indexing="xy")
 
     src_x = (dst_x + 0.5) * fx - 0.5
     src_y = (dst_y + 0.5) * fy - 0.5
@@ -251,7 +250,7 @@ def crop(image, projection):
 def preprocess4det(image, projection, means=None):
     xl, xr, yt, yb = crop(image, projection)
     src = image[yt:yb,xl:xr]
-    dst = torch.zeros(270, 270, 3, device=device)
+    dst = torch.zeros(270, 270, 3, device=src.device)
     resized = ResizeGPU(src, dst, means)
     return resized
 
@@ -264,7 +263,7 @@ def preprocess4rec(image, bbox, shape, means=None):
     # if means != None:
     #     src = src - means
     # dst = F.interpolate((src).permute(2,0,1).unsqueeze(0), shape, mode="bilinear").squeeze().permute(1, 2, 0)
-    dst = torch.zeros(shape, device=device)
+    dst = torch.zeros(shape, device=src.device)
     resized = ResizeGPU(src, dst, means)
     return resized
 
