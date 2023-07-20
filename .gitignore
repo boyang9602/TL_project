@@ -1,4 +1,6 @@
 __pycache__
 top200
 S2TLD*/
-results/
+results*/
+adv*.bin
+*_detection_results.bin
