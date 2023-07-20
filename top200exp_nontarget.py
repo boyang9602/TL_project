@@ -63,5 +63,5 @@ for i, (idx, case) in enumerate(perfect_cases):
     adv_img = adversarial.adversarial(pipeline, image, boxes, objfn, 3, 16, 5)
     adv_imgs.append(adv_img.type(torch.short).cpu())
 adv_imgs = torch.stack(adv_imgs)
-with open(f'{obj}.bin', 'wb') as f:
+with open(f'results/{obj}.bin', 'wb') as f:
     pickle.dump(adv_imgs, f)
