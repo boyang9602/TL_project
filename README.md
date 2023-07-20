@@ -12,7 +12,7 @@ pipeline.py: the code that combines the detector, selector and recognizer, follo
 utils.py: the utils functions, including reading annotation files, visualizing TL detection and recognition results, NMS, etc. Most functions are self-explained and commented. 
 hungarian_optimizer: the replicated hungarian algorithm implementation of Baidu Apollo's Hungarian Optimizer. https://github.com/b0yan9/hungarian_optimizer 
 adversarial.py: the adversarial attack code and objective function. All the parameters are commented and explained in the code.
-main.py: the example code to run the inference and adversarial attack. 
+main.py: the code to infer the given dataset and save the detection results into a file. 
 eval.py: the code to evaluate the results of inference on S2TLD dataset. 
 models/: this folder contains the weights files of the networks. The example code below shows how to use them. 
 top200perfect.py: the code to find 200 pictures whose avg IoUs are top among all of the perfect cases. 

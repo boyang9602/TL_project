@@ -12,7 +12,6 @@ def infer_all(model, ds):
     with torch.no_grad():
         t1 = time.perf_counter()
         for idx in range(len(ds)):
-            print(idx)
             item = ds[idx]
             image = item['image']
             boxes = item['boxes']
