@@ -7,9 +7,9 @@ import xml.etree.ElementTree as ET
 
 import cv2
 import hungarian_optimizer
-from detector import TFModel
-from recognizer import Recognizer
-from pipeline import Pipeline
+from models.src.detector import TFModel
+from models.src.recognizer import Recognizer
+from models.src.pipeline import Pipeline
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(f'Device is {device}')

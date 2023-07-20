@@ -2,9 +2,9 @@ import cv2
 import utils
 import torch
 import pickle
-from detector import TFModel
-from recognizer import Recognizer
-from pipeline import Pipeline
+from models.src.detector import TFModel
+from models.src.recognizer import Recognizer
+from models.src.pipeline import Pipeline
 from utils import readxml2
 from utils import preprocess4rec, preprocess4det
 from utils import box2projection, crop

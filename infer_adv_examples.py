@@ -5,9 +5,9 @@ import torch
 import sys
 from utils import IoU_multi, IoG_multi, readxml2
 import pickle
-from detector import TFModel
-from recognizer import Recognizer
-from pipeline import Pipeline
+from models.src.detector import TFModel
+from models.src.recognizer import Recognizer
+from models.src.pipeline import Pipeline
 import hungarian_optimizer
 
 torch.manual_seed(42)

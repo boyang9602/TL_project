@@ -2,9 +2,9 @@ import torch
 import cv2
 import time
 import pickle
-from detector import TFModel
-from recognizer import Recognizer
-from pipeline import Pipeline
+from models.src.detector import TFModel
+from models.src.recognizer import Recognizer
+from models.src.pipeline import Pipeline
 import hungarian_optimizer
 import utils
 import adversarial

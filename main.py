@@ -3,7 +3,7 @@ import sys
 import pickle
 import torch
 from dataset import get_dataset
-from pipeline import load_pipeline
+from models.src.pipeline import load_pipeline
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

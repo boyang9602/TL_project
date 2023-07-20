@@ -1,7 +1,6 @@
 import os
 import sys
 import cv2
-import json
 import torch
 import xml.etree.ElementTree as ET
 

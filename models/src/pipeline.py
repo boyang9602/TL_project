@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from detector import TFModel
-from recognizer import Recognizer
+from .detector import TFModel
+from .recognizer import Recognizer
 import hungarian_optimizer
 from utils import preprocess4det, preprocess4rec, restore_boxes_to_full_image, nms, boxes2projections
 from selector import select_tls
@@ -83,7 +83,7 @@ def load_pipeline(device=None):
     means_rec = torch.Tensor([69.06, 66.58, 66.56]).to(device)
 
     detector = TFModel(device=device)
-    detector.load_state_dict(torch.load('models/tl.torch'))
+    detector.load_state_dict(torch.load('models/weights/tl.torch'))
     detector = detector.to(device)
     detector.eval();
 
@@ -94,15 +94,15 @@ def load_pipeline(device=None):
     hori_recognizer = Recognizer(hori_pool_params)
     vert_recognizer = Recognizer(vert_pool_params)
 
-    quad_recognizer.load_state_dict(torch.load('models/quad.torch'))
+    quad_recognizer.load_state_dict(torch.load('models/weights/quad.torch'))
     quad_recognizer = quad_recognizer.to(device)
     quad_recognizer.eval();
 
-    hori_recognizer.load_state_dict(torch.load('models/hori.torch'))
+    hori_recognizer.load_state_dict(torch.load('models/weights/hori.torch'))
     hori_recognizer = hori_recognizer.to(device)
     hori_recognizer.eval();
 
-    vert_recognizer.load_state_dict(torch.load('models/vert.torch'))
+    vert_recognizer.load_state_dict(torch.load('models/weights/vert.torch'))
     vert_recognizer = vert_recognizer.to(device)
     vert_recognizer.eval();
     classifiers = [(vert_recognizer, (96, 32, 3)), (quad_recognizer, (64, 64, 3)), (hori_recognizer, (32, 96, 3))]
