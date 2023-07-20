@@ -8,6 +8,7 @@ def calc_2d_gaussian_score(p1, p2, sigma1, sigma2):
 def select_tls(ho, detections, projections, item_shape):
     """
     detections shape is [n, 9]
+    return [n, 2], the first col is the idx of the ground truth, the second col is the idx of the valid detections
     """
     costs = torch.zeros([len(projections), len(detections)])
     for row, projection in enumerate(projections):
