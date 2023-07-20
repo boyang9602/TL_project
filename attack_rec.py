@@ -1,159 +1,97 @@
-import cv2
-import utils
+import sys
 import torch
 import pickle
-from detector import TFModel
-from recognizer import Recognizer
-from pipeline import Pipeline
-from utils import readxml2
-from utils import preprocess4rec, preprocess4det
-from utils import box2projection, crop
-import matplotlib.pyplot as plt
+from models.src.pipeline import load_pipeline
+from utils import preprocess4rec, box2projection, crop
+from dataset import get_dataset
 import torch.nn.functional as F
 
+def attack_recognizer(recognizer, tl_box, gt_color, eps=16, step_size=3, max_it=10, device=None):
+    with torch.no_grad():
+        orig_cls_vector = recognizer(tl_box.permute(2, 0, 1).unsqueeze(0))
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-means_rec = torch.Tensor([69.06, 66.58, 66.56]).to(device)
-REC_COLORS = ["off", "red", "yellow", "green"]
-eps = 16
-step_size = 3
+    adv_img = tl_box + torch.empty_like(tl_box.type(torch.float)).uniform_(-eps, eps)
+    adv_img = adv_img.requires_grad_()
 
-quad_pool_params = {'kernel_size': (4, 4), 'stride': (4, 4)}
-hori_pool_params = {'kernel_size': (2, 6), 'stride': (2, 6)}
-vert_pool_params = {'kernel_size': (6, 2), 'stride': (6, 2)}
-quad_recognizer = Recognizer(quad_pool_params)
-hori_recognizer = Recognizer(hori_pool_params)
-vert_recognizer = Recognizer(vert_pool_params)
+    optimizer = torch.optim.Adam([adv_img], lr=step_size)
+    for _ in range(max_it):
+        output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
+        color_loss = -F.nll_loss(output, torch.tensor([gt_color], device=device))
+        color_loss.backward()
 
-quad_recognizer.load_state_dict(torch.load('models/quad.torch'))
-quad_recognizer = quad_recognizer.to(device)
-quad_recognizer.eval();
+        optimizer.step()
+        optimizer.zero_grad()
 
-hori_recognizer.load_state_dict(torch.load('models/hori.torch'))
-hori_recognizer = hori_recognizer.to(device)
-hori_recognizer.eval();
+    with torch.no_grad():
+        adv_cls_vector = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
 
-vert_recognizer.load_state_dict(torch.load('models/vert.torch'))
-vert_recognizer = vert_recognizer.to(device)
-vert_recognizer.eval();
-classifiers = [(vert_recognizer, (96, 32, 3)), (quad_recognizer, (64, 64, 3)), (hori_recognizer, (32, 96, 3))]
+    return orig_cls_vector, adv_cls_vector
 
-recognizer, shape = classifiers[0]
+if __name__ == '__main__':
+    # set manual seed for reproducibility
+    torch.manual_seed(42)
+    
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    color_labels = ["off", "red", "yellow", "green"]
 
-with open('top200avg.bin', 'rb') as f:
-    perfect_cases = pickle.load(f)
+    ds720 = get_dataset(sys.argv[1], device)
 
-# count = 0
-# atk = torchattacks.PGD(recognizer, eps=16, alpha=2, steps=10)
-# for x, perfect_case in enumerate(perfect_cases):
-#     folder = 'normal_1' if perfect_case[1] <= 778 else 'normal_2'
-#     image_file = 'S2TLD/{}/JPEGImages/{:06d}.jpg'.format(folder, perfect_case[1])
-#     annot_file = 'S2TLD/{}/Annotations/{:06d}.xml'.format(folder, perfect_case[1])
-#     image = torch.from_numpy(cv2.imread(image_file)).to(device)
-#     boxes, colors = readxml2(annot_file)
-#     for i, (box, color) in enumerate(zip(boxes, colors)):
-#         tl_box = preprocess4rec(image, box, shape, means_rec)
+    pl = load_pipeline(device)
+    recognizer, shape = pl.classifiers[0]
+    means_rec = pl.means_rec
 
-#         adv_img = tl_box + torch.empty_like(tl_box.type(torch.float)).uniform_(-eps, eps)
-#         adv_img = adv_img.requires_grad_()
-#         with torch.no_grad():
-#             output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-#             tlcolor = REC_COLORS[torch.argmax(output).item()].lower()
+    # tech debt. should be parameterized
+    with open('top200avg.bin', 'rb') as f:
+        perfect_cases = pickle.load(f)
 
-#         optimizer = torch.optim.Adam([adv_img], lr=step_size)
-#         for _ in range(10):
-#             output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-#             color_loss = -F.nll_loss(output, torch.tensor([REC_COLORS.index(color)], device=device))
-#             color_loss.backward()
+    count0 = 0 # use the ground truth detection box
+    counta = 0
+    count1 = 0 # use the a larger detection box, which is centered by the ground truth box
+    countb = 0
+    count2 = 0 # use the entire ROI
+    countc = 0
+    total = 0
+    for perfect_case in perfect_cases:
+        item = ds720[perfect_case[0]]
+        image = item['image']
+        boxes = item['boxes']
+        colors = item['colors']
+        for i, (box, color) in enumerate(zip(boxes, colors)):
+            total += 1
+            gt_color = color_labels.index(color)
 
-#             optimizer.step()
-#             optimizer.zero_grad()
+            # case 0
+            tl_box = preprocess4rec(image, box, shape, means_rec)
+            orig_cls_vector, adv_cls_vector = attack_recognizer(recognizer, tl_box, gt_color, device=device)
+            orig_color = torch.argmax(orig_cls_vector).item()
+            adv_color = torch.argmax(adv_cls_vector).item()
+            count0 += gt_color == adv_color
+            counta += gt_color == orig_color
+            
+            # case 1
+            x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
+            width = x2 - x1
+            height = y2 - y1
+            image_width = ds720.item_shape()[1]
+            image_height = ds720.item_shape()[0]
+            box = [max(x1 - width, 0), max(y1 - height, 0), min(x2 + width, image_width), min(y2 + height, image_height)]
+            tl_box = preprocess4rec(image, box, shape, means_rec)
+            orig_cls_vector, adv_cls_vector = attack_recognizer(recognizer, tl_box, gt_color, device=device)
+            orig_color = torch.argmax(orig_cls_vector).item()
+            adv_color = torch.argmax(adv_cls_vector).item()
+            count1 += gt_color == adv_color
+            countb += gt_color == orig_color
 
-#         with torch.no_grad():
-#             output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-#             tlcolor2 = REC_COLORS[torch.argmax(output).item()].lower()
-
-#         if tlcolor2 == tlcolor:
-#             count += 1
-# print(count)
-# 378
-
-# count = 0
-# atk = torchattacks.PGD(recognizer, eps=16, alpha=2, steps=10)
-# for x, perfect_case in enumerate(perfect_cases):
-#     folder = 'normal_1' if perfect_case[1] <= 778 else 'normal_2'
-#     image_file = 'S2TLD/{}/JPEGImages/{:06d}.jpg'.format(folder, perfect_case[1])
-#     annot_file = 'S2TLD/{}/Annotations/{:06d}.xml'.format(folder, perfect_case[1])
-#     image = torch.from_numpy(cv2.imread(image_file)).to(device)
-#     boxes, colors = readxml2(annot_file)
-#     for i, (box, color) in enumerate(zip(boxes, colors)):
-#         x1 = box[0]
-#         y1 = box[1]
-#         x2 = box[2]
-#         y2 = box[3]
-#         width = x2 - x1
-#         height = y2 - y1
-#         box = [max(x1 - width, 0), max(y1 - height, 0), min(x2 + width, 1280), min(y2 + height, 720)]
-
-#         tl_box = preprocess4rec(image, box, shape, means_rec)
-
-#         adv_img = tl_box + torch.empty_like(tl_box.type(torch.float)).uniform_(-eps, eps)
-#         adv_img = adv_img.requires_grad_()
-#         with torch.no_grad():
-#             output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-#             tlcolor = REC_COLORS[torch.argmax(output).item()].lower()
-
-#         optimizer = torch.optim.Adam([adv_img], lr=step_size)
-#         for _ in range(10):
-#             output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-#             color_loss = -F.nll_loss(output, torch.tensor([REC_COLORS.index(color)], device=device))
-#             color_loss.backward()
-
-#             optimizer.step()
-#             optimizer.zero_grad()
-
-#         with torch.no_grad():
-#             output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-#             tlcolor2 = REC_COLORS[torch.argmax(output).item()].lower()
-
-#         if tlcolor2 == tlcolor:
-#             count += 1
-# print(count)
-# 340
-
-count = 0
-atk = torchattacks.PGD(recognizer, eps=16, alpha=2, steps=10)
-for x, perfect_case in enumerate(perfect_cases):
-    folder = 'normal_1' if perfect_case[1] <= 778 else 'normal_2'
-    image_file = 'S2TLD/{}/JPEGImages/{:06d}.jpg'.format(folder, perfect_case[1])
-    annot_file = 'S2TLD/{}/Annotations/{:06d}.xml'.format(folder, perfect_case[1])
-    image = torch.from_numpy(cv2.imread(image_file)).to(device)
-    boxes, colors = readxml2(annot_file)
-    for i, (box, color) in enumerate(zip(boxes, colors)):
-        projection = box2projection(box)
-        xl, xr, yt, yb = crop(image, projection)
-        tl_box = preprocess4rec(image, [xl, yt, xr, yb], shape, means_rec)
-
-        adv_img = tl_box + torch.empty_like(tl_box.type(torch.float)).uniform_(-eps, eps)
-        adv_img = adv_img.requires_grad_()
-        with torch.no_grad():
-            output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-            tlcolor = REC_COLORS[torch.argmax(output).item()].lower()
-
-        optimizer = torch.optim.Adam([adv_img], lr=step_size)
-        for _ in range(10):
-            output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-            color_loss = -F.nll_loss(output, torch.tensor([REC_COLORS.index(color)], device=device))
-            color_loss.backward()
-
-            optimizer.step()
-            optimizer.zero_grad()
-
-        with torch.no_grad():
-            output = recognizer(adv_img.permute(2, 0, 1).unsqueeze(0))
-            tlcolor2 = REC_COLORS[torch.argmax(output).item()].lower()
-
-        if tlcolor2 == tlcolor:
-            count += 1
-print(count)
-# 305
+            # case 2
+            projection = box2projection(box)
+            xl, xr, yt, yb = crop(image, projection)
+            tl_box = preprocess4rec(image, [xl, yt, xr, yb], shape, means_rec)
+            orig_cls_vector, adv_cls_vector = attack_recognizer(recognizer, tl_box, gt_color, device=device)
+            orig_color = torch.argmax(orig_cls_vector).item()
+            adv_color = torch.argmax(adv_cls_vector).item()
+            count2 += gt_color == adv_color
+            countc += gt_color == orig_color
+    print(f'Ground Truth detection box\n\t#Correct on original picture: {counta}\n\t#Correct on adversarial picture: {count0}')
+    print(f'A bigger detection box\n\t#Correct on original picture: {countb}\n\t#Correct on adversarial picture: {count1}')
+    print(f'ROI as the detection box\n\t#Correct on original picture: {countc}\n\t#Correct on adversarial picture: {count2}')
+    print('Total cases: ', total)
