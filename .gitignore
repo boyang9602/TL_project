@@ -1,6 +1,3 @@
 __pycache__
-top200
-S2TLD*/
-results*/
-adv*.bin
-*_detection_results.bin
+data/
+S2TLD*
