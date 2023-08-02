@@ -12,6 +12,14 @@ def process_adv_img(img, adv_img, eps):
     adv_img = img + perturbation
     return adv_img
 
+def naive_tltype_identifier(gt_box):
+    if gt_box[3] - gt_box[1] > gt_box[2] - gt_box[0]:
+        # height > width, vertical
+        return 1
+    else:
+        # else horizontal
+        return 3
+
 def adversarial(model, data_item, objective_fn, step_size=3, eps=16, budget=5, device=None):
     """
     This is the overall framework
@@ -63,9 +71,9 @@ def objective(boxes, colors, output, loss_fns):
         if iou <= 1e-4:
             # no intersection, pass
             continue
-        score += loss_fns['box_loss'](boxes[gt_idx], valid_detections[det_idx][1:5], iou)
-        score += loss_fns['type_loss'](boxes[gt_idx], valid_detections[det_idx][5:])
-        score += loss_fns['color_loss'](colors[gt_idx], recognitions[det_idx])
+        score += loss_fns['rcnn_reg_loss'](boxes[gt_idx], valid_detections[det_idx][1:5], iou)
+        score += loss_fns['rcnn_cls_loss'](naive_tltype_identifier(boxes[gt_idx]), valid_detections[det_idx][5:])
+        score += loss_fns['rec_cls_loss'](COLOR_LABELS.index(colors[gt_idx]), recognitions[det_idx])
 
     # process invalid_detections
     invalid_ious = IoU_multi(invalid_detections[:, 1:5], boxes)
@@ -74,8 +82,8 @@ def objective(boxes, colors, output, loss_fns):
         if iou <= 1e-4:
             # no intersection, pass
             continue
-        score += loss_fns['box_loss'](boxes[gt_idx], invalid_detections[det_idx][1:5], iou)
-        score += loss_fns['type_loss'](boxes[gt_idx], invalid_detections[det_idx][5:])
+        score += loss_fns['rcnn_reg_loss'](boxes[gt_idx], invalid_detections[det_idx][1:5], iou)
+        score += loss_fns['rcnn_cls_loss'](naive_tltype_identifier(boxes[gt_idx]), invalid_detections[det_idx][5:])
 
     # process RPN layer intermediate data
     rpn_ious = IoU_multi(invalid_detections[:, 1:5], boxes)
@@ -84,8 +92,8 @@ def objective(boxes, colors, output, loss_fns):
         if iou <= 1e-4:
             # no intersection, pass
             continue
-        score += loss_fns['box_loss'](boxes[gt_idx], rpn_attack_data[det_idx][1:5], iou)
-        score += loss_fns['rpn_objectiveness_loss'](rpn_attack_data[det_idx][5:])
+        score += loss_fns['rpn_reg_loss'](boxes[gt_idx], rpn_attack_data[det_idx][1:5], iou)
+        score += loss_fns['rpn_cls_loss'](1, rpn_attack_data[det_idx][5:])
 
     return score
 
@@ -106,18 +114,8 @@ def box_iog_loss(gt_box, det_box, iou):
     # try to make the iog smaller
     return IoG_single(gt_box, det_box)
 
-def type_nll_loss(gt_box, type_scores):
-    if gt_box[3] - gt_box[1] > gt_box[2] - gt_box[0]:
-        # height > width, vertical
-        tltype = 1
-    else:
-        # else horizontal
-        tltype = 3
-    return -F.nll_loss(type_scores.unsqueeze(0), torch.tensor([tltype], device=type_scores.device))
+def cls_nll_loss(gt_idx, scores_vec):
+    return -F.nll_loss(scores_vec.unsqueeze(0), torch.tensor([gt_idx], device=scores_vec.device))
 
-def color_nll_loss(color, recognition_scores):
-    color_num = COLOR_LABELS.index(color)
-    return -F.nll_loss(recognition_scores.unsqueeze(0), torch.tensor([color_num], device=recognition_scores.device))
-
-def objectiveness_nll_loss(objectiveness_scores):
-    return -F.nll_loss(objectiveness_scores.unsqueeze(0), torch.tensor([1], device=objectiveness_scores.device))
+def cls_gt_score_loss(gt_idx, scores_vec):
+    return scores_vec[gt_idx]
