@@ -30,12 +30,17 @@ class S2TLD720Dataset(torch.utils.data.Dataset):
         """
         self.root_dir = root_dir
         self.filelist = []
+        self.inferred_tl_types = []
         self.device = device
         with open(f'{root_dir}/filelist.txt', 'r') as f:
             lines = f.readlines()
             for line in lines:
                 folder_filename = line.strip().split(',')
                 self.filelist.append((folder_filename[0], folder_filename[1]))
+        with open(f'{root_dir}/inferred_tl_types.txt', 'r') as f:
+            for line in f.readlines():
+                types = line.strip().split(',')
+                self.inferred_tl_types.append(types)
 
 
     def __len__(self):
@@ -50,6 +55,7 @@ class S2TLD720Dataset(torch.utils.data.Dataset):
             'image': torch.from_numpy(cv2.imread(image_file)).to(self.device),
             'boxes': boxes,
             'colors': colors,
+            'inferred_tl_types': self.inferred_tl_types[idx],
             'folder': folder,
             'filename': filename
         }
@@ -68,13 +74,17 @@ class S2TLD1080Dataset(torch.utils.data.Dataset):
         """
         self.root_dir = root_dir
         self.filelist = []
+        self.inferred_tl_types = []
         self.device = device
         with open(f'{root_dir}/filelist.txt', 'r') as f:
             lines = f.readlines()
             for line in lines:
                 filename = line.strip()
                 self.filelist.append(filename)
-
+        with open(f'{root_dir}/inferred_tl_types.txt', 'r') as f:
+            for line in f.readlines():
+                types = line.strip().split(',')
+                self.inferred_tl_types.append(types)
 
     def __len__(self):
         return len(self.filelist)
@@ -88,6 +98,7 @@ class S2TLD1080Dataset(torch.utils.data.Dataset):
             'image': torch.from_numpy(cv2.imread(image_file)).to(self.device),
             'boxes': boxes,
             'colors': colors,
+            'inferred_tl_types': self.inferred_tl_types[idx],
             'filename': filename
         }
     

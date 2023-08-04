@@ -2,8 +2,6 @@ import torch
 import torch.nn.functional as F
 from tools.utils import IoU_multi, IoG_single
 
-COLOR_LABELS = ["off", "red", "yellow", "green"]
-
 def process_adv_img(img, adv_img, eps):
     """project the perturbations, not exceeds -eps and eps, new img not exceed 0-255"""
     adv_img = torch.clamp(adv_img.detach().clone(), 0, 255)
@@ -59,11 +57,14 @@ def adversarial(model, data_item, objective_fn, step_size=3, eps=16, budget=5, d
         adv_img = process_adv_img(adv_img.detach().clone(), adv_img.detach().clone(), eps).requires_grad_()
     return adv_img
 
-def objective(boxes, colors, output, loss_fns):
+def objective(boxes, colors, inferred_tl_types, output, loss_fns):
+    """
+    Basic objective. 
+    It will apply the loss function on the detections having intersection with the ground truths
+    """
     valid_detections, recognitions, assignments, invalid_detections, rpn_attack_data = output
 
     score = 0
-
     # process valid_detections
     valid_ious = IoU_multi(valid_detections[:, 1:5], boxes)
     maxes = torch.max(valid_ious, 1)
@@ -72,8 +73,8 @@ def objective(boxes, colors, output, loss_fns):
             # no intersection, pass
             continue
         score += loss_fns['rcnn_reg_loss'](boxes[gt_idx], valid_detections[det_idx][1:5], iou)
-        score += loss_fns['rcnn_cls_loss'](naive_tltype_identifier(boxes[gt_idx]), valid_detections[det_idx][5:])
-        score += loss_fns['rec_cls_loss'](COLOR_LABELS.index(colors[gt_idx]), recognitions[det_idx])
+        score += loss_fns['rcnn_cls_loss'](inferred_tl_types[gt_idx], valid_detections[det_idx][5:])
+        score += loss_fns['rec_cls_loss'](colors[gt_idx], recognitions[det_idx])
 
     # process invalid_detections
     invalid_ious = IoU_multi(invalid_detections[:, 1:5], boxes)
@@ -83,10 +84,10 @@ def objective(boxes, colors, output, loss_fns):
             # no intersection, pass
             continue
         score += loss_fns['rcnn_reg_loss'](boxes[gt_idx], invalid_detections[det_idx][1:5], iou)
-        score += loss_fns['rcnn_cls_loss'](naive_tltype_identifier(boxes[gt_idx]), invalid_detections[det_idx][5:])
+        score += loss_fns['rcnn_cls_loss'](inferred_tl_types[gt_idx], invalid_detections[det_idx][5:])
 
     # process RPN layer intermediate data
-    rpn_ious = IoU_multi(invalid_detections[:, 1:5], boxes)
+    rpn_ious = IoU_multi(rpn_attack_data[:, 1:5], boxes)
     maxes = torch.max(rpn_ious, 1)
     for det_idx, (gt_idx, iou) in enumerate(zip(maxes.indices, maxes.values)):
         if iou <= 1e-4:

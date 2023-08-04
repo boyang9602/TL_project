@@ -6,6 +6,15 @@ import attack.adversarial as adversarial
 import argparse
 import os
 
+TL_TYPES = ['UNK', 'VERT', 'QUAD', 'HORI']
+COLOR_LABELS = ["off", "red", "yellow", "green"]
+
+def convert_labels_to_nums(labels, label_list):
+    ret = []
+    for label in labels:
+        ret.append(label_list.index(label))
+    return ret
+
 def load_topk_idxs(filename):
     topk = []
     if filename.endswith('.txt'):
@@ -19,7 +28,7 @@ def load_topk_idxs(filename):
                 topk.append(item[0])
     return topk
 
-def get_loss_fns(rcnn_reg_loss_name, rcnn_cls_loss_name, rpn_reg_loss_name, rpn_cls_loss_name, rec_cls_loss_name):
+def get_loss_fns(rcnn_reg_loss_name, rcnn_cls_loss_name, rec_cls_loss_name, rpn_reg_loss_name, rpn_cls_loss_name):
     loss_fns = {
         'rcnn_reg_loss': getattr(adversarial, rcnn_reg_loss_name),
         'rcnn_cls_loss': getattr(adversarial, rcnn_cls_loss_name),
@@ -37,6 +46,10 @@ if __name__ == '__main__':
     parser.add_argument('--topk_file', '-f', action='store', required=False, default=None, help='the selected perfect cases.')
     parser.add_argument('--path', '-p', action='store', required=False, default=None, help='the output path.')
 
+    parser.add_argument('--eps', '-e', action='store', required=False, default=16, type=int)
+    parser.add_argument('--step_size', '-s', action='store', required=False, default=3, type=int)
+    parser.add_argument('--max_iter', '-m', action='store', required=False, default=5, type=int)
+
     parser.add_argument('--rcnn_reg_loss', '-b', action='store', required=False, default='dummy_loss', help='RCNN box loss function name')
     parser.add_argument('--rcnn_cls_loss', '-t', action='store', required=False, default='dummy_loss', help='RCNN type loss function name')
     parser.add_argument('--rec_cls_loss', '-c', action='store', required=False, default='dummy_loss', help='Recognizer cls loss function name')
@@ -50,33 +63,31 @@ if __name__ == '__main__':
     def objective_fn(data_item, output):
         boxes = torch.tensor(data_item['boxes'], device=device)
         colors = data_item['colors']
+        inferred_tl_types = data_item['inferred_tl_types']
+        assert 'NA' not in inferred_tl_types
         loss_fns = get_loss_fns(args.rcnn_reg_loss, args.rcnn_cls_loss, args.rec_cls_loss, args.rpn_reg_loss, args.rpn_cls_loss)
-        return adversarial.objective(boxes, colors, output, loss_fns)
+        return adversarial.objective(boxes, convert_labels_to_nums(colors, COLOR_LABELS), convert_labels_to_nums(inferred_tl_types, TL_TYPES), output, loss_fns)
 
     adv_imgs = []
     topk_filename = args.topk_file
     if topk_filename is None:
         topk_filename = f'data/evaluation/{args.dataset}_top200.bin'
     for i, idx in enumerate(load_topk_idxs(topk_filename)):
-        if i > 5:
-            break
+        # if i > 5:
+        #     break
         data_item = ds[idx]
         
-        eps = 16
-        step_size = 3
-        max_iter = 5
-        
-        adv_img = adversarial.adversarial(pl, data_item, objective_fn, step_size=step_size, eps=eps, budget=max_iter, device=device)
+        adv_img = adversarial.adversarial(pl, data_item, objective_fn, step_size=args.step_size, eps=args.eps, budget=args.max_iter, device=device)
         adv_imgs.append(adv_img.type(torch.uint8).cpu())
 
     adv_imgs = torch.stack(adv_imgs)
 
     default_path = f'data/adversarial_results/{args.dataset}/'
     if args.path is None:
-        filename = f'{default_path}{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{eps}_{step_size}_{max_iter}.bin'
+        filename = f'{default_path}{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
     else:
         if not os.path.exists(args.path):
             os.makedirs(args.path)
-        filename = f'{args.path}/{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{eps}_{step_size}_{max_iter}.bin'
+        filename = f'{args.path}/{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
     with open(filename, 'wb') as f:
         pickle.dump(adv_imgs, f)
