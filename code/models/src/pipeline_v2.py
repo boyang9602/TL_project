@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from .detector import TFModel
+from .detector_v2 import TFModel
 from .recognizer import Recognizer
 import models.src.hungarian_optimizer as hungarian_optimizer
 from tools.utils import preprocess4det, preprocess4rec, restore_boxes_to_full_image, nms, boxes2projections
