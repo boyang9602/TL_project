@@ -5,6 +5,7 @@ from tools.utils import nms
 import time
 PERF_LOG = False
 
+im_info = torch.tensor([270, 270])
 bbox_reg_param = {
     'bbox_mean': [0.000437, 0.002586, -0.123953, -0.081469],
     'bbox_std':  [0.126770, 0.095741,  0.317300,  0.281042]
@@ -191,6 +192,16 @@ class RPNProposalSSD(nn.Module):
             print(f"RPN done in {toc-tic:0.4f} seconds!")
         return proposals, scores
 
+dfmb_psroi_pooling_param = {
+    'heat_map_a': 8,
+    'output_dim': 10,
+    'group_height': 7,
+    'group_width': 7,
+    'pooled_height': 7,
+    'pooled_width': 7,
+    'pad_ratio': 0.000000,
+    'sample_per_part': 4
+}
 class DFMBPSROIAlign(nn.Module):
     def __init__(self, dfmb_psroi_pooling_param, device=None):
         super(DFMBPSROIAlign, self).__init__()
@@ -289,16 +300,6 @@ class DFMBPSROIAlign(nn.Module):
 
         return sum_.permute(2, 0, 1)
 
-dfmb_psroi_pooling_param = {
-    'heat_map_a': 8,
-    'output_dim': 10,
-    'group_height': 7,
-    'group_width': 7,
-    'pooled_height': 7,
-    'pooled_width': 7,
-    'pad_ratio': 0.000000,
-    'sample_per_part': 4
-}
 rcnn_bbox_reg_param = {
     'bbox_mean': [0.000000, 0.000000, 0.000000, 0.000000],
     'bbox_std': [0.100000, 0.100000, 0.200000, 0.200000]
@@ -447,7 +448,6 @@ class RCNNProposal(nn.Module):
             toc = time.perf_counter()
             print(f"RCNN done in {toc-tic:0.4f} seconds!")
         return torch.hstack([torch.zeros((boxes.shape[0], 1), device=self.device), boxes, pre_nms_all_probs[nms_indices][:self.nms_param['top_n']]])
-im_info = torch.tensor([270, 270])
 
 class ConvBNScale(nn.Module):
     """
