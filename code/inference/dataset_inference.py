@@ -2,7 +2,7 @@ import time
 import pickle
 import torch
 from tools.dataset import get_dataset
-from models.src.pipeline import load_pipeline
+from models.src.pipeline_v2 import load_pipeline
 import argparse
 import os
 

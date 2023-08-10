@@ -5,6 +5,33 @@ from tools.utils import nms
 import time
 PERF_LOG = False
 
+bbox_reg_param = {
+    'bbox_mean': [0.000437, 0.002586, -0.123953, -0.081469],
+    'bbox_std':  [0.126770, 0.095741,  0.317300,  0.281042]
+}
+detection_output_ssd_param = {
+    'heat_map_a': 8,
+    'min_size_h': 6.160560,
+    'min_size_w': 6.160560,
+    'min_size_mode': 'HEIGHT_OR_WIDTH',
+    'threshold_objectness': 0.200000,
+    'gen_anchor_param': {
+        'anchor_widths': [9.232984,   16.0, 27.712813,  18.465969,  32.0,   55.425626,  36.931937,  64.0, 
+                          110.851252, 73.863875,  128.0,  221.702503, 147.72775,  256.0,    443.405007],
+        'anchor_heights': [27.72668,  16.0, 9.237604,   55.453359,  32.0,   18.475209,  110.906719, 64.0,
+                           36.950417, 221.813438, 128.0,  73.900834,  443.626876, 256.0,    147.801669]
+    },
+    'refine_out_of_map_bbox': True,
+    'nms_param': {
+        'overlap_ratio': 0.700000,
+        'top_n': 300,
+        'max_candidate_n': 3000,
+        'use_soft_nms': False,
+        'voting': False,
+        'vote_iou': 0.700000
+    }
+}
+
 # detection
 class RPNProposalSSD(nn.Module):
     def __init__(self, bbox_reg_param, detection_output_ssd_param, device=None):
@@ -163,32 +190,6 @@ class RPNProposalSSD(nn.Module):
             toc = time.perf_counter()
             print(f"RPN done in {toc-tic:0.4f} seconds!")
         return proposals, scores
-bbox_reg_param = {
-    'bbox_mean': [0.000437, 0.002586, -0.123953, -0.081469],
-    'bbox_std':  [0.126770, 0.095741,  0.317300,  0.281042]
-}
-detection_output_ssd_param = {
-    'heat_map_a': 8,
-    'min_size_h': 6.160560,
-    'min_size_w': 6.160560,
-    'min_size_mode': 'HEIGHT_OR_WIDTH',
-    'threshold_objectness': 0.200000,
-    'gen_anchor_param': {
-        'anchor_widths': [9.232984,   16.0, 27.712813,  18.465969,  32.0,   55.425626,  36.931937,  64.0, 
-                          110.851252, 73.863875,  128.0,  221.702503, 147.72775,  256.0,    443.405007],
-        'anchor_heights': [27.72668,  16.0, 9.237604,   55.453359,  32.0,   18.475209,  110.906719, 64.0,
-                           36.950417, 221.813438, 128.0,  73.900834,  443.626876, 256.0,    147.801669]
-    },
-    'refine_out_of_map_bbox': True,
-    'nms_param': {
-        'overlap_ratio': 0.700000,
-        'top_n': 300,
-        'max_candidate_n': 3000,
-        'use_soft_nms': False,
-        'voting': False,
-        'vote_iou': 0.700000
-    }
-}
 
 class DFMBPSROIAlign(nn.Module):
     def __init__(self, dfmb_psroi_pooling_param, device=None):
@@ -269,16 +270,10 @@ class DFMBPSROIAlign(nn.Module):
                 dist_x = w - x1 # => 49, n
                 dist_y = h - y1 # => 49, n
 
-                assert x1.shape == x2.shape and x1.shape == y1.shape and x1.shape == y2.shape
-
-                value11 = ft_add_left_right[:, phs, pws, y1, x1] # => 10, 49, n
-                value11[:, ~x1valid * y1valid] = 0
-                value12 = ft_add_left_right[:, phs, pws, y2, x1] # => 10, 49, n
-                value11[:, ~x1valid * y2valid] = 0
-                value21 = ft_add_left_right[:, phs, pws, y1, x2] # => 10, 49, n
-                value11[:, ~x2valid * y1valid] = 0
-                value22 = ft_add_left_right[:, phs, pws, y2, x2] # => 10, 49, n
-                value11[:, ~x2valid * y2valid] = 0
+                value11 = ft_add_left_right[:, phs, pws, y1, x1] * x1valid * y1valid # => 10, 49, n
+                value12 = ft_add_left_right[:, phs, pws, y2, x1] * x1valid * y2valid # => 10, 49, n
+                value21 = ft_add_left_right[:, phs, pws, y1, x2] * x2valid * y1valid # => 10, 49, n
+                value22 = ft_add_left_right[:, phs, pws, y2, x2] * x2valid * y2valid # => 10, 49, n
 
                 value = (1 - dist_x) * (1 - dist_y) * value11 \
                         + (1 - dist_x) * dist_y * value12 \
