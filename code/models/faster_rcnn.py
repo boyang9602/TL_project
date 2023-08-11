@@ -83,15 +83,20 @@ class RCNNProposal(nn.Module):
         cls_score_softmax = cls_score_softmax[indices]
         decoded_bbox_pred = decoded_bbox_pred[indices]
 
-        maxes, argmaxes = torch.max(cls_score_softmax[:,1:], 1)
+        # cls_score_softmax_discarded = cls_score_softmax[~indices]
+        # decoded_bbox_pred_discarded = decoded_bbox_pred[~indices]
+
+        maxes, argmaxes = torch.max(cls_score_softmax[:,1:], 1) # => max: n, argmax: n
         argmaxes += 1
         indices = maxes > self.thresholds[0]
+        argmaxes = argmaxes[indices]
+        maxes = maxes[indices]
 
         # simplified this step. In theory, 3 classes can have different threshold, but in the model definition, they are the same. 
         # So the simplification should not have any affects to the results
         cls_score_softmax = cls_score_softmax[indices]
-        decoded_bbox_pred = decoded_bbox_pred[indices]
-        decoded_bbox_pred = decoded_bbox_pred.reshape(-1, 4)[argmaxes[indices] + torch.arange(0, decoded_bbox_pred.shape[0], device=self.device) * 4]
+        decoded_bbox_pred = decoded_bbox_pred[indices] # => (n, 4, 4)
+        decoded_bbox_pred = decoded_bbox_pred[torch.arange(decoded_bbox_pred.shape[0]), argmaxes]
 
         w = decoded_bbox_pred[:, 2] - decoded_bbox_pred[:, 0] + 1
         h = decoded_bbox_pred[:, 3] - decoded_bbox_pred[:, 1] + 1
@@ -104,12 +109,14 @@ class RCNNProposal(nn.Module):
         cls_score_softmax = cls_score_softmax[keep]
 
         # keep max N candidates
-        top_indices = torch.topk(maxes[indices][keep], min(maxes[indices][keep].shape[0], self.nms_param['max_candidate_n'])).indices
+        num_keep = min(maxes[keep].shape[0], self.nms_param['max_candidate_n'])
+        top_indices = torch.topk(maxes[keep], num_keep).indices
         pre_nms_bbox = decoded_bbox_pred[top_indices]
         pre_nms_all_probs = cls_score_softmax[top_indices]
+
         argmaxes = torch.argmax(pre_nms_all_probs[:,1:], 1) + 1
-        pre_nms_score = pre_nms_all_probs.flatten()[argmaxes + 4 * torch.arange(0, len(top_indices), device=self.device)]
 
         nms_indices = nms(pre_nms_bbox, self.nms_param['overlap_ratio'])
         boxes = pre_nms_bbox[nms_indices][:self.nms_param['top_n']]
-        return torch.hstack([torch.zeros((boxes.shape[0], 1), device=self.device), boxes, pre_nms_all_probs[nms_indices][:self.nms_param['top_n']]])
+        scores = pre_nms_all_probs[nms_indices][:self.nms_param['top_n']]
+        return torch.hstack([torch.zeros((boxes.shape[0], 1), device=self.device), boxes, scores])
