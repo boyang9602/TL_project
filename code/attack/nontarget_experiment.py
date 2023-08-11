@@ -5,6 +5,7 @@ from tools.dataset import get_dataset
 import attack.adversarial as adversarial
 import argparse
 import os
+import time
 
 TL_TYPES = ['UNK', 'VERT', 'QUAD', 'HORI']
 COLOR_LABELS = ["off", "red", "yellow", "green"]
@@ -74,13 +75,14 @@ if __name__ == '__main__':
         topk_filename = f'data/evaluation/{args.dataset}_top200.bin'
     
     
+    t1 = time.perf_counter()
     for i, idx in enumerate(load_topk_idxs(topk_filename)):
-        # if i > 5:
-        #     break
         data_item = ds[idx]
         
         adv_img = adversarial.adversarial(pl, data_item, objective_fn, step_size=args.step_size, eps=args.eps, budget=args.max_iter, device=device)
         adv_imgs.append(adv_img.type(torch.uint8).cpu())
+    t2 = time.perf_counter()
+    print(f"Run all the cases in {t2-t1:0.4f} seconds!")
 
     adv_imgs = torch.stack(adv_imgs)
 
