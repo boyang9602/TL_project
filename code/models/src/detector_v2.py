@@ -384,10 +384,6 @@ class RCNNProposal(nn.Module):
     def forward(self, cls_score_softmax, bbox_pred, rois, im_info):
         if PERF_LOG:
             tic = time.perf_counter()
-        num_rois = rois.shape[1]
-        cls_score_softmax_size = num_rois * 4
-        bbox_pred_size = num_rois * 4 * 4
-        output_size = 9
         origin_height = im_info[0]
         origin_width = im_info[1]
         # normalize the rois
@@ -418,7 +414,6 @@ class RCNNProposal(nn.Module):
         cls_score_softmax = cls_score_softmax[indices]
         decoded_bbox_pred = decoded_bbox_pred[indices]
         decoded_bbox_pred = decoded_bbox_pred.reshape(-1, 4)[argmaxes[indices] + torch.arange(0, decoded_bbox_pred.shape[0], device=self.device) * 4]
-        filtered_count = decoded_bbox_pred.shape[0]
 
         w = decoded_bbox_pred[:, 2] - decoded_bbox_pred[:, 0] + 1
         h = decoded_bbox_pred[:, 3] - decoded_bbox_pred[:, 1] + 1
@@ -429,20 +424,15 @@ class RCNNProposal(nn.Module):
             keep = (w >= self.min_size_w) * (h >= self.min_size_h)
         decoded_bbox_pred = decoded_bbox_pred[keep]
         cls_score_softmax = cls_score_softmax[keep]
-        # indices *= keep
 
         # keep max N candidates
-        # top_indices = torch.topk(maxes[indices], min(maxes[indices].shape[0], self.nms_param['max_candidate_n'])).indices
         top_indices = torch.topk(maxes[indices][keep], min(maxes[indices][keep].shape[0], self.nms_param['max_candidate_n'])).indices
         pre_nms_bbox = decoded_bbox_pred[top_indices]
         pre_nms_all_probs = cls_score_softmax[top_indices]
         argmaxes = torch.argmax(pre_nms_all_probs[:,1:], 1) + 1
         pre_nms_score = pre_nms_all_probs.flatten()[argmaxes + 4 * torch.arange(0, len(top_indices), device=self.device)]
-        
-        # nms_indices = torchvision.ops.nms(pre_nms_bbox, pre_nms_score, self.nms_param['overlap_ratio'])
-        # nms_indices = self.nms(pre_nms_bbox, self.nms_param['overlap_ratio'])
+
         nms_indices = nms(pre_nms_bbox, self.nms_param['overlap_ratio'])
-        # print(nms_indices, nms_indices.type())
         boxes = pre_nms_bbox[nms_indices][:self.nms_param['top_n']]
         if PERF_LOG:
             toc = time.perf_counter()

@@ -99,11 +99,10 @@ def nms(boxes, thresh_iou):
     Apply non-maximum suppression to avoid detecting too many
     overlapping bounding boxes for a given object.
     Args:
-        boxes: (tensor) The location preds for the image 
-            along with the class predscores, Shape: [num_boxes,5].
+        boxes: (tensor) The location of boxes **sorted** decreasingly by their confidence scores, shape: [num_boxes,4].
         thresh_iou: (float) The overlap thresh for suppressing unnecessary boxes.
     Returns:
-        A list of filtered boxes, Shape: [ , 5]
+        The list of indices of the boxes that should be kept.
     """
     # we extract coordinates for every 
     # prediction box present in P
