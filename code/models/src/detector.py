@@ -5,6 +5,34 @@ from tools.utils import nms
 import time
 PERF_LOG = False
 
+im_info = torch.tensor([270, 270])
+bbox_reg_param = {
+    'bbox_mean': [0.000437, 0.002586, -0.123953, -0.081469],
+    'bbox_std':  [0.126770, 0.095741,  0.317300,  0.281042]
+}
+detection_output_ssd_param = {
+    'heat_map_a': 8,
+    'min_size_h': 6.160560,
+    'min_size_w': 6.160560,
+    'min_size_mode': 'HEIGHT_OR_WIDTH',
+    'threshold_objectness': 0.200000,
+    'gen_anchor_param': {
+        'anchor_widths': [9.232984,   16.0, 27.712813,  18.465969,  32.0,   55.425626,  36.931937,  64.0, 
+                          110.851252, 73.863875,  128.0,  221.702503, 147.72775,  256.0,    443.405007],
+        'anchor_heights': [27.72668,  16.0, 9.237604,   55.453359,  32.0,   18.475209,  110.906719, 64.0,
+                           36.950417, 221.813438, 128.0,  73.900834,  443.626876, 256.0,    147.801669]
+    },
+    'refine_out_of_map_bbox': True,
+    'nms_param': {
+        'overlap_ratio': 0.700000,
+        'top_n': 300,
+        'max_candidate_n': 3000,
+        'use_soft_nms': False,
+        'voting': False,
+        'vote_iou': 0.700000
+    }
+}
+
 # detection
 class RPNProposalSSD(nn.Module):
     def __init__(self, bbox_reg_param, detection_output_ssd_param, device=None):
@@ -163,31 +191,16 @@ class RPNProposalSSD(nn.Module):
             toc = time.perf_counter()
             print(f"RPN done in {toc-tic:0.4f} seconds!")
         return proposals, scores
-bbox_reg_param = {
-    'bbox_mean': [0.000437, 0.002586, -0.123953, -0.081469],
-    'bbox_std':  [0.126770, 0.095741,  0.317300,  0.281042]
-}
-detection_output_ssd_param = {
+
+dfmb_psroi_pooling_param = {
     'heat_map_a': 8,
-    'min_size_h': 6.160560,
-    'min_size_w': 6.160560,
-    'min_size_mode': 'HEIGHT_OR_WIDTH',
-    'threshold_objectness': 0.200000,
-    'gen_anchor_param': {
-        'anchor_widths': [9.232984,   16.0, 27.712813,  18.465969,  32.0,   55.425626,  36.931937,  64.0, 
-                          110.851252, 73.863875,  128.0,  221.702503, 147.72775,  256.0,    443.405007],
-        'anchor_heights': [27.72668,  16.0, 9.237604,   55.453359,  32.0,   18.475209,  110.906719, 64.0,
-                           36.950417, 221.813438, 128.0,  73.900834,  443.626876, 256.0,    147.801669]
-    },
-    'refine_out_of_map_bbox': True,
-    'nms_param': {
-        'overlap_ratio': 0.700000,
-        'top_n': 300,
-        'max_candidate_n': 3000,
-        'use_soft_nms': False,
-        'voting': False,
-        'vote_iou': 0.700000
-    }
+    'output_dim': 10,
+    'group_height': 7,
+    'group_width': 7,
+    'pooled_height': 7,
+    'pooled_width': 7,
+    'pad_ratio': 0.000000,
+    'sample_per_part': 4
 }
 class DFMBPSROIAlign(nn.Module):
     def __init__(self, dfmb_psroi_pooling_param, device=None):
@@ -197,6 +210,10 @@ class DFMBPSROIAlign(nn.Module):
         self.pooled_width = dfmb_psroi_pooling_param['pooled_width']
         self.anchor_stride = dfmb_psroi_pooling_param['heat_map_a']
         self.sample_per_part = dfmb_psroi_pooling_param['sample_per_part']
+
+        self.channels = 10
+        self.width = 34
+        self.height = 34
 
     def forward(self, ft_add_left_right, rois):
         """
@@ -209,7 +226,8 @@ class DFMBPSROIAlign(nn.Module):
         if len(rois.shape) == 4:
             rois = rois.squeeze(2)
             rois = rois.squeeze(2)
-        ft_add_left_right = ft_add_left_right[0].reshape(10, 7, 7, 34, 34)
+        ft_add_left_right = ft_add_left_right[0].reshape(self.channels, self.pooled_height, self.pooled_width, self.height, self.width)
+        
         # ROI positions. In the original code, it has calculations with pad_w/h and heat_map_b. 
         # Not sure what they are, there values should be 0 by my analysis, so just ignore them.
         roi_start_w = rois[:,1] / self.anchor_stride
@@ -226,73 +244,62 @@ class DFMBPSROIAlign(nn.Module):
         bin_size_w = roi_width  / self.pooled_width
         sub_bin_size_h = bin_size_h / self.sample_per_part
         sub_bin_size_w = bin_size_w / self.sample_per_part
-        pooling = []
-        for ph in range(self.pooled_height):
-            for pw in range(self.pooled_width):
-                # ignored some things in baidu's implementation because their values are 0 and do not take effect. 
-                hstart = torch.floor(roi_start_h + ph * bin_size_h)
-                wstart = torch.floor(roi_start_w + pw * bin_size_w)
-                
-                sum_ = torch.zeros((wstart.shape[0], ft_add_left_right.shape[0]), device=self.device)
-                count = torch.zeros(wstart.shape, device=self.device)
-                for ih in range(self.sample_per_part):  
-                    for iw in range(self.sample_per_part):
-                        # w and h are the samples
-                        w = wstart + (iw + 0.5) * sub_bin_size_w
-                        h = hstart + (ih + 0.5) * sub_bin_size_h
-                        keep = (w > -1) * (w < ft_add_left_right.shape[-1]) * (h > -1) * (h < ft_add_left_right.shape[-2])
-                        w = w[keep]
-                        h = h[keep]
-                        # bilinear interpolation
-                        x1 = torch.floor(w).to(torch.long)
-                        x2 = torch.ceil(w).to(torch.long)
-                        y1 = torch.floor(h).to(torch.long)
-                        y2 = torch.ceil(h).to(torch.long)
-                        x1valid = (x1 >= 0) * (x1 < 34)
-                        x2valid = (x2 >= 0) * (x2 < 34)
-                        y1valid = (y1 >= 0) * (y1 < 34)
-                        y2valid = (y2 >= 0) * (y2 < 34)
 
-                        dist_x = w - x1
-                        dist_y = h - y1
+        grid = torch.meshgrid(torch.arange(self.pooled_height, device=self.device), torch.arange(self.pooled_width, device=self.device), indexing='ij')
+        phs = grid[0].reshape(-1, 1) # => 49, 1
+        pws = grid[1].reshape(-1, 1) # => 49, 1
 
-                        assert x1.shape == x2.shape and x1.shape == y1.shape and x1.shape == y2.shape
-                        value11 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
-                        value12 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
-                        value21 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
-                        value22 = torch.zeros((x1.shape[0], ft_add_left_right.shape[0]), device=self.device)
+        hstart = torch.floor(roi_start_h + phs * bin_size_h) # => 49, n
+        wstart = torch.floor(roi_start_w + pws * bin_size_w) # => 49, n
 
-                        value11[x1valid * y1valid, :] = ft_add_left_right[:, ph, pw, y1[x1valid * y1valid], x1[x1valid * y1valid]].permute(1, 0)
-                        value12[x1valid * y2valid, :] = ft_add_left_right[:, ph, pw, y2[x1valid * y2valid], x1[x1valid * y2valid]].permute(1, 0)
-                        value21[x2valid * y1valid, :] = ft_add_left_right[:, ph, pw, y1[x2valid * y1valid], x2[x2valid * y1valid]].permute(1, 0)
-                        value22[x2valid * y2valid, :] = ft_add_left_right[:, ph, pw, y2[x2valid * y2valid], x2[x2valid * y2valid]].permute(1, 0)
-                        
-                        value = (1 - dist_x).unsqueeze(1) * (1 - dist_y).unsqueeze(1) * value11 \
-                                + (1 - dist_x).unsqueeze(1) * dist_y.unsqueeze(1) * value12 \
-                                + dist_x.unsqueeze(1) * (1 - dist_y).unsqueeze(1) * value21 \
-                                + dist_x.unsqueeze(1) * dist_y.unsqueeze(1) * value22
-                        sum_[keep, :] += value
-                        count[keep] += 1
-                result = torch.zeros(sum_.shape, device=self.device)
-                result[count != 0, :] = sum_[count != 0, :] / count[count != 0].unsqueeze(1)
-                pooling.append(result)
-        ret = torch.empty(rois.shape[0], 10, 49, device=self.device)
-        for i, result in enumerate(pooling):
-            ret[:,:,i] = result
+        sum_ = torch.zeros((self.channels, self.pooled_height * self.pooled_width, rois.shape[0]), device=self.device)
+        count = torch.zeros((self.pooled_height * self.pooled_width, rois.shape[0]), device=self.device)
+
+        for ih in range(self.sample_per_part):
+            for iw in range(self.sample_per_part):
+                # w and h are the samples
+                w = wstart + (iw + 0.5) * sub_bin_size_w
+                h = hstart + (ih + 0.5) * sub_bin_size_h
+
+                keep = (w > -1) * (w < self.width) * (h > -1) * (h < self.height)
+
+                # bilinear interpolation
+                x1 = torch.floor(w).to(torch.long)
+                x2 = torch.ceil(w).to(torch.long)
+                y1 = torch.floor(h).to(torch.long)
+                y2 = torch.ceil(h).to(torch.long)
+                x1valid = (x1 >= 0) * (x1 < self.width)
+                x2valid = (x2 >= 0) * (x2 < self.width)
+                y1valid = (y1 >= 0) * (y1 < self.height)
+                y2valid = (y2 >= 0) * (y2 < self.height)
+
+                x1 = torch.clamp(x1, 0, 33)
+                x2 = torch.clamp(x2, 0, 33)
+                y1 = torch.clamp(y1, 0, 33)
+                y2 = torch.clamp(y2, 0, 33)
+
+                dist_x = w - x1 # => 49, n
+                dist_y = h - y1 # => 49, n
+
+                value11 = ft_add_left_right[:, phs, pws, y1, x1] * x1valid * y1valid # => 10, 49, n
+                value12 = ft_add_left_right[:, phs, pws, y2, x1] * x1valid * y2valid # => 10, 49, n
+                value21 = ft_add_left_right[:, phs, pws, y1, x2] * x2valid * y1valid # => 10, 49, n
+                value22 = ft_add_left_right[:, phs, pws, y2, x2] * x2valid * y2valid # => 10, 49, n
+
+                value = (1 - dist_x) * (1 - dist_y) * value11 \
+                        + (1 - dist_x) * dist_y * value12 \
+                        + dist_x * (1 - dist_y) * value21 \
+                        + dist_x * dist_y * value22 # => 10, 49, n
+                sum_[:, keep] += value[:, keep]
+                count[keep] += 1
+        nonzero = count > 0
+        sum_[:, nonzero] /= count[nonzero]
         if PERF_LOG:
             toc = time.perf_counter()
             print(f"PSROI done in {toc-tic:0.4f} seconds!")
-        return ret
-dfmb_psroi_pooling_param = {
-    'heat_map_a': 8,
-    'output_dim': 10,
-    'group_height': 7,
-    'group_width': 7,
-    'pooled_height': 7,
-    'pooled_width': 7,
-    'pad_ratio': 0.000000,
-    'sample_per_part': 4
-}
+
+        return sum_.permute(2, 0, 1)
+
 rcnn_bbox_reg_param = {
     'bbox_mean': [0.000000, 0.000000, 0.000000, 0.000000],
     'bbox_std': [0.100000, 0.100000, 0.200000, 0.200000]
@@ -377,10 +384,6 @@ class RCNNProposal(nn.Module):
     def forward(self, cls_score_softmax, bbox_pred, rois, im_info):
         if PERF_LOG:
             tic = time.perf_counter()
-        num_rois = rois.shape[1]
-        cls_score_softmax_size = num_rois * 4
-        bbox_pred_size = num_rois * 4 * 4
-        output_size = 9
         origin_height = im_info[0]
         origin_width = im_info[1]
         # normalize the rois
@@ -411,7 +414,6 @@ class RCNNProposal(nn.Module):
         cls_score_softmax = cls_score_softmax[indices]
         decoded_bbox_pred = decoded_bbox_pred[indices]
         decoded_bbox_pred = decoded_bbox_pred.reshape(-1, 4)[argmaxes[indices] + torch.arange(0, decoded_bbox_pred.shape[0], device=self.device) * 4]
-        filtered_count = decoded_bbox_pred.shape[0]
 
         w = decoded_bbox_pred[:, 2] - decoded_bbox_pred[:, 0] + 1
         h = decoded_bbox_pred[:, 3] - decoded_bbox_pred[:, 1] + 1
@@ -422,26 +424,20 @@ class RCNNProposal(nn.Module):
             keep = (w >= self.min_size_w) * (h >= self.min_size_h)
         decoded_bbox_pred = decoded_bbox_pred[keep]
         cls_score_softmax = cls_score_softmax[keep]
-        # indices *= keep
 
         # keep max N candidates
-        # top_indices = torch.topk(maxes[indices], min(maxes[indices].shape[0], self.nms_param['max_candidate_n'])).indices
         top_indices = torch.topk(maxes[indices][keep], min(maxes[indices][keep].shape[0], self.nms_param['max_candidate_n'])).indices
         pre_nms_bbox = decoded_bbox_pred[top_indices]
         pre_nms_all_probs = cls_score_softmax[top_indices]
         argmaxes = torch.argmax(pre_nms_all_probs[:,1:], 1) + 1
         pre_nms_score = pre_nms_all_probs.flatten()[argmaxes + 4 * torch.arange(0, len(top_indices), device=self.device)]
-        
-        # nms_indices = torchvision.ops.nms(pre_nms_bbox, pre_nms_score, self.nms_param['overlap_ratio'])
-        # nms_indices = self.nms(pre_nms_bbox, self.nms_param['overlap_ratio'])
+
         nms_indices = nms(pre_nms_bbox, self.nms_param['overlap_ratio'])
-        # print(nms_indices, nms_indices.type())
         boxes = pre_nms_bbox[nms_indices][:self.nms_param['top_n']]
         if PERF_LOG:
             toc = time.perf_counter()
             print(f"RCNN done in {toc-tic:0.4f} seconds!")
         return torch.hstack([torch.zeros((boxes.shape[0], 1), device=self.device), boxes, pre_nms_all_probs[nms_indices][:self.nms_param['top_n']]])
-im_info = torch.tensor([270, 270])
 
 class ConvBNScale(nn.Module):
     """

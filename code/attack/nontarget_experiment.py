@@ -72,6 +72,8 @@ if __name__ == '__main__':
     topk_filename = args.topk_file
     if topk_filename is None:
         topk_filename = f'data/evaluation/{args.dataset}_top200.bin'
+    
+    
     for i, idx in enumerate(load_topk_idxs(topk_filename)):
         # if i > 5:
         #     break
