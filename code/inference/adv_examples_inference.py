@@ -3,7 +3,7 @@ Inference the adversarial examples
 """
 import torch
 import pickle
-from models.src.pipeline import load_pipeline
+from models.pipeline import load_pipeline
 from tools.dataset import get_dataset
 import argparse
 

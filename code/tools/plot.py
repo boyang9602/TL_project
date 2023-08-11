@@ -3,7 +3,7 @@ import matplotlib.patches as patches
 import argparse
 import utils
 import dataset
-from models.src.pipeline import load_pipeline
+from models.pipeline import load_pipeline
 import torch
 
 def plot_ground_truth(dataset_name, idx):

@@ -22,7 +22,7 @@ You need to set the PYTHONPATH first.
 To set up the detection, selection and recognition pipeline 
 
 ```python
-from models.src.pipeline import load_pipeline
+from models.pipeline import load_pipeline
 torch.manual_seed(42) # for reproductibility, not necessary
 device = "cuda" if torch.cuda.is_available() else "cpu"
 pl = load(device=device)
