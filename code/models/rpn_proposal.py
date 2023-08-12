@@ -144,14 +144,9 @@ class RPNProposalSSD(nn.Module):
         # keep max N candidates
         top_indices = torch.topk(scores[:, 1], min(scores.shape[0], self.nms_param['max_candidate_n'])).indices
         proposals = proposals[top_indices]
-        scores = scores[top_indices]
 
         # apply NMS
-        # nms_indices = torchvision.ops.nms(proposals, scores[:, 1], self.nms_param['overlap_ratio'])
-        # nms_indices = self.nms(proposals, self.nms_param['overlap_ratio'])
         nms_indices = nms(proposals, self.nms_param['overlap_ratio'])
-        # print(nms_indices, nms_indices.type())
         proposals = proposals[nms_indices][:self.nms_param['top_n']]
-        scores = scores[nms_indices][:self.nms_param['top_n']]
         proposals = torch.hstack([torch.zeros((proposals.shape[0], 1), device=self.device), proposals])
-        return proposals, scores
+        return proposals

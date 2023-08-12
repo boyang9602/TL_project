@@ -11,6 +11,8 @@ def select_tls(ho, detections, projections, item_shape):
     return [n, 2], the first col is the idx of the ground truth, the second col is the idx of the valid detections
     """
     costs = torch.zeros([len(projections), len(detections)])
+    if torch.numel(costs) == 0:
+        return torch.empty([0, 2])
     for row, projection in enumerate(projections):
         center_hd = [projection.center_x, projection.center_y]
         for col, detection in enumerate(detections):

@@ -21,7 +21,7 @@ class ConvBNScale(nn.Module):
 
 class FeatureNet(nn.Module):
     """
-    This is the model to extract features from the image. I made it a separate network and used it in the TFModel below.
+    This is the model to extract features from the image. I made it a separate network and used it in the TLDetector below.
     It is based on ResNet I think.
     """
     def __init__(self):

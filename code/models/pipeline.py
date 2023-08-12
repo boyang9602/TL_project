@@ -1,10 +1,11 @@
 import torch
 import torch.nn as nn
-from .detector import TFModel
+from .detector import TLDetector
 from .recognizer import Recognizer
 import models.hungarian_optimizer as hungarian_optimizer
 from tools.utils import preprocess4det, preprocess4rec, restore_boxes_to_full_image, nms, boxes2projections
 from .selector import select_tls
+import json
 
 class Pipeline(nn.Module):
     """
@@ -22,71 +23,65 @@ class Pipeline(nn.Module):
         """bboxes should be a list of list, each sub-list is like [xmin, ymin, xmax, ymax]"""
         detected_boxes = []
         projections = boxes2projections(boxes)
-        rpn_attack_data = []
         for projection in projections:
-            img = image.clone().to(self.device)
-            input = preprocess4det(img, projection, self.means_det)
-            bboxes, rois, objness_scores = self.detector(input.unsqueeze(0).permute(0, 3, 1, 2))
+            input = preprocess4det(image, projection, self.means_det)
+            bboxes = self.detector(input.unsqueeze(0).permute(0, 3, 1, 2))
             detected_boxes.append(bboxes)
-            rois_w_scores = torch.hstack([rois, objness_scores])
-            rpn_attack_data.append(rois_w_scores)
         detections = restore_boxes_to_full_image(image, detected_boxes, projections)
-        rpn_attack_data = restore_boxes_to_full_image(image, rpn_attack_data, projections)
-        if len(detections) == 0:
-            detections = torch.empty([0, 9], device=self.device)
-        else:
-            detections = torch.vstack(detections)
-        if len(rpn_attack_data) == 0:
-            rpn_attack_data = torch.empty([0, 7], device=self.device)
-        else:
-            rpn_attack_data = torch.vstack(rpn_attack_data)
+        detections = torch.vstack(detections).reshape(-1, 9)
         idxs = nms(detections[:, 1:5], 0.6)
         detections = detections[idxs]
-        idxs = nms(rpn_attack_data[:, 1:5], 0.6)
-        rpn_attack_data = rpn_attack_data[idxs]
-        return detections, rpn_attack_data
-    def recognize(self, img, detections):
+        return detections
+    def recognize(self, img, detections, tl_types):
         recognitions = []
-        for _, detection in enumerate(detections):
+        for detection, tl_type in zip(detections, tl_types):
             det_box = detection[1:5].type(torch.long)
-            tl_type = torch.argmax(detection[5:]).item() - 1
-            recognizer, shape = self.classifiers[tl_type]
+            recognizer, shape = self.classifiers[tl_type-1]
             input = preprocess4rec(img, det_box, shape, self.means_rec)
             output = recognizer(input.permute(2, 0, 1).unsqueeze(0))
             assert output.shape[0] == 1
             recognitions.append(output[0])
-        if len(recognitions) == 0:
-            return torch.empty([0, 4], device=self.device)
-        return torch.vstack(recognitions)
+        return torch.vstack(recognitions).reshape(-1, 4)
     def forward(self, img, boxes):
         """img should not substract the means, if there's a perturbation, the perturbation should be added to the img
         return valid_detections, recognitions, assignments, invalid_detections
         """
-        detections, rpn_attack_data = self.detect(img, boxes)
-        if len(detections) == 0:
-            return torch.empty([0, 9], device=self.device), \
-                    torch.empty([0, 4], device=self.device), \
-                    torch.empty([0, 2], device=self.device), \
-                    torch.empty([0, 9], device=self.device), \
-                    torch.empty([0, 7], device=self.device)
+        if len(boxes) == 0:
+            return torch.empty((0, 9), device=self.device), \
+                torch.empty((0, 4), device=self.device), \
+                torch.empty((0, 2), device=self.device), \
+                torch.empty((0, 9), device=self.device)
+        detections = self.detect(img, boxes)
         tl_types = torch.argmax(detections[:, 5:], dim=1)
         valid_inds = tl_types != 0
-        invalid_inds = tl_types == 0
         valid_detections = detections[valid_inds]
-        invalid_detections = detections[invalid_inds]
+        invalid_detections = detections[~valid_inds]
         assignments = select_tls(self.ho, valid_detections, boxes2projections(boxes), img.shape).to(self.device)
-        # in theory, we only recognize the selected TLs. 
-        # however, for attacking, it would be better to gain more information
-        # so we recognize all. It will be slower but it's fine.
-        recognitions = self.recognize(img, valid_detections)
-        return valid_detections, recognitions, assignments, invalid_detections, rpn_attack_data
-    
+        # Baidu Apollo only recognize the selected TLs, we recognize all valid detections.
+        if len(valid_detections) != 0:
+            recognitions = self.recognize(img, valid_detections, tl_types[valid_inds])
+        else:
+            recognitions = torch.empty((0, 4), device=self.device)
+        return valid_detections, recognitions, assignments, invalid_detections
+
 def load_pipeline(device=None):
     print(f'Loaded the TL pipeline. Device is {device}')
     means_det = torch.Tensor([102.9801, 115.9465, 122.7717]).to(device)
     means_rec = torch.Tensor([69.06, 66.58, 66.56]).to(device)
 
-    detector = TFModel(device=device)
+    with open('code/models/confs/bbox_reg_param.json', 'r') as f:
+        bbox_reg_param = json.load(f)
+    with open('code/models/confs/detection_output_ssd_param.json', 'r') as f:
+        detection_output_ssd_param = json.load(f)
+    with open('code/models/confs/dfmb_psroi_pooling_param.json', 'r') as f:
+        dfmb_psroi_pooling_param = json.load(f)
+    with open('code/models/confs/rcnn_bbox_reg_param.json', 'r') as f:
+        rcnn_bbox_reg_param = json.load(f)
+    with open('code/models/confs/rcnn_detection_output_ssd_param.json', 'r') as f:
+        rcnn_detection_output_ssd_param = json.load(f)
+    im_info = [270, 270]
+
+    detector = TLDetector(bbox_reg_param, detection_output_ssd_param, dfmb_psroi_pooling_param, rcnn_bbox_reg_param, rcnn_detection_output_ssd_param, im_info, device=device)
     detector.load_state_dict(torch.load('code/models/weights/tl.torch'))
     detector = detector.to(device)
     detector.eval();

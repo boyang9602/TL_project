@@ -16,7 +16,7 @@ def infer_all(model, ds):
             boxes = item['boxes']
             colors = item['colors']
             try:
-                valid_detections, recognitions, assignments, invalid_detections, _ = model(image, boxes)
+                valid_detections, recognitions, assignments, invalid_detections = model(image, boxes)
             except:
                 print(idx)
                 raise

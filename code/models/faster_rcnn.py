@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from tools.utils import nms
 
 class RCNNProposal(nn.Module):
@@ -83,9 +82,6 @@ class RCNNProposal(nn.Module):
         cls_score_softmax = cls_score_softmax[indices]
         decoded_bbox_pred = decoded_bbox_pred[indices]
 
-        # cls_score_softmax_discarded = cls_score_softmax[~indices]
-        # decoded_bbox_pred_discarded = decoded_bbox_pred[~indices]
-
         maxes, argmaxes = torch.max(cls_score_softmax[:,1:], 1) # => max: n, argmax: n
         argmaxes += 1
         indices = maxes > self.thresholds[0]
@@ -96,7 +92,7 @@ class RCNNProposal(nn.Module):
         # So the simplification should not have any affects to the results
         cls_score_softmax = cls_score_softmax[indices]
         decoded_bbox_pred = decoded_bbox_pred[indices] # => (n, 4, 4)
-        decoded_bbox_pred = decoded_bbox_pred[torch.arange(decoded_bbox_pred.shape[0]), argmaxes]
+        decoded_bbox_pred = decoded_bbox_pred[torch.arange(decoded_bbox_pred.shape[0]), argmaxes] # => (n, 4)
 
         w = decoded_bbox_pred[:, 2] - decoded_bbox_pred[:, 0] + 1
         h = decoded_bbox_pred[:, 3] - decoded_bbox_pred[:, 1] + 1

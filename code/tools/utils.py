@@ -269,7 +269,7 @@ def preprocess4rec(image, bbox, shape, means=None):
 def bgr2rgb(image):
     return image[:,:,[2,1,0]]
 
-def restore_boxes_to_full_image(image, detections, projections):
+def restore_boxes_to_full_image(image, detections, projections, start_col=1):
     """
     detections is a list of the output of each projection, each is in shape (n, 9)
     this func will convert the the detected boxes from the ROI's location to the full image's location
@@ -277,15 +277,15 @@ def restore_boxes_to_full_image(image, detections, projections):
     ret = []
     assert len(detections) == len(projections), f'{len(detections)} == {len(projections)}'
     for detection, projection in zip(detections, projections):
-        for i in range(detection.shape[0]):
-            if detection[i][0] < 0:
-                detection = detection[:i]
-                break
+        # for i in range(detection.shape[0]):
+        #     if detection[i][0] < 0:
+        #         detection = detection[:i]
+        #         break
         xl, xr, yt, yb = crop(image, projection)
-        detection[:, 1] += xl
-        detection[:, 2] += yt
-        detection[:, 3] += xl
-        detection[:, 4] += yt
+        detection[:, start_col] += xl
+        detection[:, start_col+1] += yt
+        detection[:, start_col+2] += xl
+        detection[:, start_col+3] += yt
         ret.append(detection)
     return ret
 
