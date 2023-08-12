@@ -62,7 +62,7 @@ def objective(boxes, colors, inferred_tl_types, output, loss_fns):
     Basic objective. 
     It will apply the loss function on the detections having intersection with the ground truths
     """
-    valid_detections, recognitions, assignments, invalid_detections, rpn_attack_data = output
+    valid_detections, recognitions, assignments, invalid_detections, rpn_data, rcnn_boxes, rcnn_scores = output
 
     score = 0
     # process valid_detections
@@ -87,14 +87,14 @@ def objective(boxes, colors, inferred_tl_types, output, loss_fns):
         score += loss_fns['rcnn_cls_loss'](inferred_tl_types[gt_idx], invalid_detections[det_idx][5:])
 
     # process RPN layer intermediate data
-    rpn_ious = IoU_multi(rpn_attack_data[:, 1:5], boxes)
+    rpn_ious = IoU_multi(rpn_data[:, 1:5], boxes)
     maxes = torch.max(rpn_ious, 1)
     for det_idx, (gt_idx, iou) in enumerate(zip(maxes.indices, maxes.values)):
         if iou <= 1e-4:
             # no intersection, pass
             continue
-        score += loss_fns['rpn_reg_loss'](boxes[gt_idx], rpn_attack_data[det_idx][1:5], iou)
-        score += loss_fns['rpn_cls_loss'](1, rpn_attack_data[det_idx][5:])
+        score += loss_fns['rpn_reg_loss'](boxes[gt_idx], rpn_data[det_idx][1:5], iou)
+        score += loss_fns['rpn_cls_loss'](1, rpn_data[det_idx][5:])
 
     return score
 

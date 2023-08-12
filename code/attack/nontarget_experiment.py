@@ -1,6 +1,6 @@
 import torch
 import pickle
-from models.pipeline import load_pipeline
+from models.pipeline4attack import load_pipeline
 from tools.dataset import get_dataset
 import attack.adversarial as adversarial
 import argparse
