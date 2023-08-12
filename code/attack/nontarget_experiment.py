@@ -86,12 +86,13 @@ if __name__ == '__main__':
 
     adv_imgs = torch.stack(adv_imgs)
 
-    default_path = f'data/adversarial_results/{args.dataset}/'
-    if args.path is None:
-        filename = f'{default_path}{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
+    if args.path is not None:
+        path = args.path
     else:
-        if not os.path.exists(args.path):
-            os.makedirs(args.path)
-        filename = f'{args.path}/{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
+        path = f'data/adversarial_results/{args.dataset}'
+    filename = f'{path}/{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
+
+    if not os.path.exists(path):
+        os.makedirs(path)
     with open(filename, 'wb') as f:
         pickle.dump(adv_imgs, f)
