@@ -126,10 +126,7 @@ if __name__ == '__main__':
 
     loss_fns = {
         'rcnn_reg_loss': locals()[args.rcnn_reg_loss],
-        'rcnn_cls_loss': locals()[args.rcnn_cls_loss],
-        'rec_cls_loss': locals()[args.rec_cls_loss],
-        'rpn_reg_loss': locals()[args.rpn_reg_loss],
-        'rpn_cls_loss': locals()[args.rpn_cls_loss]
+        'rcnn_cls_loss': locals()[args.rcnn_cls_loss]
     }
 
     def objective_fn(data_item, output):
