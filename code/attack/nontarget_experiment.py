@@ -151,7 +151,6 @@ if __name__ == '__main__':
     adv_imgs = []
     t1 = time.perf_counter()
     for i, idx in enumerate(load_topk_idxs(topk_filename)):
-        if i > 5: break
         data_item = ds[idx]
         adv_img = adversarial.adversarial(pl, data_item, objective_fn, step_size=args.step_size, eps=args.eps, budget=args.max_iter)
         adv_imgs.append(adv_img.type(torch.uint8).cpu())
