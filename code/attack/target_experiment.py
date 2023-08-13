@@ -110,9 +110,9 @@ def handle_args():
 
     parser.add_argument('--rcnn_reg_loss', '-b', action='store', required=False, default='dummy_loss', help='RCNN box loss function name')
     parser.add_argument('--rcnn_cls_loss', '-t', action='store', required=False, default='dummy_loss', help='RCNN type loss function name')
-    parser.add_argument('--rec_cls_loss', '-c', action='store', required=False, default='dummy_loss', help='Recognizer cls loss function name')
-    parser.add_argument('--rpn_reg_loss', '-rb', action='store', required=False, default='dummy_loss', help='RPN box loss function name')
-    parser.add_argument('--rpn_cls_loss', '-o', action='store', required=False, default='dummy_loss', help='RPN layer objectiveness loss function name')
+    # parser.add_argument('--rec_cls_loss', '-c', action='store', required=False, default='dummy_loss', help='Recognizer cls loss function name')
+    # parser.add_argument('--rpn_reg_loss', '-rb', action='store', required=False, default='dummy_loss', help='RPN box loss function name')
+    # parser.add_argument('--rpn_cls_loss', '-o', action='store', required=False, default='dummy_loss', help='RPN layer objectiveness loss function name')
     args = parser.parse_args()
     return args
 
@@ -156,8 +156,8 @@ if __name__ == '__main__':
     if args.path is not None:
         path = args.path
     else:
-        path = f'data/adversarial_results/{args.dataset}'
-    filename = f'{path}/target_{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
+        path = f'data/adversarial_results/{args.dataset}/target/'
+    filename = f'{path}/{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
 
     if not os.path.exists(path):
         os.makedirs(path)

@@ -161,7 +161,7 @@ if __name__ == '__main__':
     if args.path is not None:
         path = args.path
     else:
-        path = f'data/adversarial_results/{args.dataset}'
+        path = f'data/adversarial_results/{args.dataset}/nontarget/'
     filename = f'{path}/{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.rec_cls_loss}_{args.rpn_reg_loss}_{args.rpn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
 
     if not os.path.exists(path):
