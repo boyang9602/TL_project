@@ -19,7 +19,7 @@ cls_loss_list = [
     'cls_gt_score_loss'
 ]
 
-command_prefix = f'python code/attack/nontarget_experiment.py -ds $1'
+command_prefix = f'python code/attack/target_experiment.py -ds $1'
 
 def make_command(commnad):
     return f'echo {commnad}\n{commnad}\n'
