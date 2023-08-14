@@ -40,7 +40,7 @@ def select_tls(ho, detections, projections, item_shape):
         if assignment[0] >= len(projections) or assignment[1] >= len(detections):
             continue
         # get the crop 
-        coors = crop(torch.empty(item_shape), projections[assignment[0]]) # xmin, xmax, ymin, ymax
+        coors = crop(item_shape, projections[assignment[0]]) # xmin, xmax, ymin, ymax
         # get the detection
         detection = detections[assignment[1]] # xmin, ymin, xmax, ymax
         # check if the detection is inside the crop

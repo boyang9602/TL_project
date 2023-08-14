@@ -1,10 +1,6 @@
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import yaml
 import csv
 import torch
-TL_TYPE_TEXTS = ['VERT', 'QUAD', 'HORI']
-REC_COLORS = ["off", "red", "yellow", "green"]
 
 def IoU_single(box1, box2):
     """
@@ -46,53 +42,6 @@ def IoG_single(box1, box2):
     a1 = (box1[2] - box1[0] + 1) * (box1[3] - box1[1] + 1)
 
     return inter / a1
-
-def viz_pipeline_results(image, valid_detections=None, recognitions=None, assignments=None, invalid_detections=None, projections=None, fig_width=20.48, fig_height=15.36):
-    """
-      results is a n*13 tensor, n TL instances, 
-      for each instance,
-      index 0: pass
-      index 1-4: bbox
-      index 5-8: TL type softmax
-      index 9-end: classification softmax
-    """
-    fig, ax = plt.subplots(1)
-    fig.set_figwidth(fig_width)
-    fig.set_figheight(fig_height)
-    ax.imshow(image)
-    if valid_detections != None:
-        for i, result in enumerate(valid_detections):
-            xmin = int(result[1].item())
-            ymin = int(result[2].item())
-            xmax = int(result[3].item())
-            ymax = int(result[4].item())
-            edge_color = 'r'
-            if i in assignments[:, 1]:
-                edge_color = 'g'
-            rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, linewidth=2, edgecolor=edge_color, facecolor="none")
-            ax.add_patch(rect)
-            tl_type = torch.argmax(result[5:9]).item() - 1
-            assert tl_type >= 0 # tl_type should be not unknown or the classification scores should be all -1s. 
-            tl_color = torch.argmax(recognitions[i])
-            ax.text(xmin, ymin-2, f'{TL_TYPE_TEXTS[tl_type]}:{REC_COLORS[tl_color]}', c='r', fontsize='large')
-    if invalid_detections != None:
-        for i, result in enumerate(invalid_detections):
-            xmin = int(result[1].item())
-            ymin = int(result[2].item())
-            xmax = int(result[3].item())
-            ymax = int(result[4].item())
-            edge_color = 'r'
-            rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, linewidth=2, edgecolor=edge_color, facecolor="none")
-            ax.add_patch(rect)
-    if projections != None:
-        for projection in projections:
-            # print(projection)
-            rect = patches.Rectangle((projection.x, projection.y), projection.w, projection.h, linewidth=2, edgecolor='c', facecolor="none")
-            ax.add_patch(rect)
-            coor = crop(image, projection)
-            rect = patches.Rectangle((coor[0], coor[2]), coor[1] - coor[0], coor[3] - coor[2], linewidth=2, edgecolor='y', facecolor="none")
-            ax.add_patch(rect)
-    return fig, ax
 
 def nms(boxes, thresh_iou):
     """
@@ -223,9 +172,9 @@ def ResizeGPU(src, dst, means):
         dst -= means
     return dst
 
-def crop(image, projection):
-    width = image.shape[1]
-    height = image.shape[0]
+def crop(image_shape, projection):
+    width = image_shape[1]
+    height = image_shape[0]
     crop_scale = 2.5
     min_crop_size = 270
     resize = crop_scale * max(projection.w, projection.h)
@@ -247,7 +196,7 @@ def crop(image, projection):
     return [int(xl), int(xr + 1), int(yt), int(yb + 1)]
 
 def preprocess4det(image, projection, means=None):
-    xl, xr, yt, yb = crop(image, projection)
+    xl, xr, yt, yb = crop(image.shape, projection)
     src = image[yt:yb,xl:xr]
     dst = torch.zeros(270, 270, 3, device=src.device)
     resized = ResizeGPU(src, dst, means)
@@ -281,7 +230,7 @@ def restore_boxes_to_full_image(image, detections, projections, start_col=1):
         #     if detection[i][0] < 0:
         #         detection = detection[:i]
         #         break
-        xl, xr, yt, yb = crop(image, projection)
+        xl, xr, yt, yb = crop(image.shape, projection)
         detection[:, start_col] += xl
         detection[:, start_col+1] += yt
         detection[:, start_col+2] += xl

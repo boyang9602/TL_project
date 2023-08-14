@@ -1,7 +1,7 @@
 import sys
 import torch
 import pickle
-from models.src.pipeline import load_pipeline
+from models.pipeline import load_pipeline
 from tools.utils import preprocess4rec, box2projection, crop
 from tools.dataset import get_dataset
 import torch.nn.functional as F
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 
             # case 2
             projection = box2projection(box)
-            xl, xr, yt, yb = crop(image, projection)
+            xl, xr, yt, yb = crop(ds720.item_shape(), projection)
             tl_box = preprocess4rec(image, [xl, yt, xr, yb], shape, means_rec)
             flag_orig2, flag_adv2, flag_zg2 = att_n_report(recognizer, tl_box, gt_color, device=device)
             count_orig2 += flag_orig2
