@@ -1,6 +1,7 @@
 """
 Inference the adversarial examples
 """
+import os
 import torch
 import pickle
 import argparse
@@ -35,5 +36,6 @@ for i, (ds_idx, adv_image) in enumerate(zip(indices, adversarial_examples)):
         valid, rec, assignments, invalid = pl(adv_image.type(torch.long).to(device), item['boxes'])
         inference_results.append((valid, rec, assignments, invalid))
 
+os.makedirs(os.path.dirname(args.output), exist_ok=True)
 with open(args.output, 'wb') as f:
     pickle.dump(inference_results, f)
