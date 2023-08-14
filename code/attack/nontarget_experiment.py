@@ -4,7 +4,7 @@ import pickle
 import argparse
 import torch
 import torch.nn.functional as F
-from tools.utils import IoU_multi, IoG_single
+from tools.utils import IoU_multi, IoG_single, load_topk_idxs
 from models.pipeline4attack import load_pipeline
 from tools.dataset import get_dataset
 import attack.adversarial as adversarial
@@ -17,19 +17,6 @@ def convert_labels_to_nums(labels, label_list):
     for label in labels:
         ret.append(label_list.index(label))
     return ret
-
-def load_topk_idxs(filename):
-    topk = []
-    if filename.endswith('.txt'):
-        with open(filename, 'r') as f:
-            for line in f.readlines():
-                topk.append(int(line.split(',')[0]))
-    else:
-        with open(filename, 'rb') as f:
-            tmp = pickle.load(f)
-            for item in tmp:
-                topk.append(item[0])
-    return topk
 
 def objective(boxes, colors, inferred_tl_types, output, loss_fns):
     """
