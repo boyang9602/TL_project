@@ -25,12 +25,6 @@ def make_command(commnad):
     return f'echo {commnad}\n{commnad}\n'
 
 sh += '''
-# RCNN
-# RCNN reg loss only
-'''
-for box_loss in box_loss_list:
-    sh += make_command(command_prefix + f' -b {box_loss}')
-sh += '''
 # RCNN cls loss only
 '''
 for cls_loss in cls_loss_list:
