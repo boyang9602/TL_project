@@ -1,6 +1,20 @@
 import yaml
 import csv
 import torch
+import pickle
+
+def load_topk_idxs(filename):
+    topk = []
+    if filename.endswith('.txt'):
+        with open(filename, 'r') as f:
+            for line in f.readlines():
+                topk.append(int(line.split(',')[0]))
+    else:
+        with open(filename, 'rb') as f:
+            tmp = pickle.load(f)
+            for item in tmp:
+                topk.append(item[0])
+    return topk
 
 def IoU_single(box1, box2):
     """
