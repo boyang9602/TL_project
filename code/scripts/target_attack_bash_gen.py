@@ -13,7 +13,7 @@ export PYTHONPATH=./code/
 
 cls_loss_list = [
     'cls_nll_loss',
-    'cls_gt_score_loss'
+    # 'cls_gt_score_loss'
 ]
 
 command_prefix = f'python code/attack/target_experiment.py -ds $1'
