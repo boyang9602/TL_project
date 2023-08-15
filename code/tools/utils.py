@@ -16,6 +16,12 @@ def load_topk_idxs(filename):
                 topk.append(item[0])
     return topk
 
+def convert_labels_to_nums(labels, label_list):
+    ret = []
+    for label in labels:
+        ret.append(label_list.index(label))
+    return ret
+
 def IoU_single(box1, box2):
     """
     use it to inspect two single boxes

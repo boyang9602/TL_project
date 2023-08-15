@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(description='Inference the generated adversaria
 parser.add_argument('--filename', '-f', action='store', required=True, help='the binary file name of the adversarial examples')
 parser.add_argument('--output', '-o', action='store', required=True, help='the binary file name of the detection results to be written to')
 parser.add_argument('--dataset', '-ds', action='store', required=True, choices=['S2TLD720', 'S2TLD1080'], help='the dataset where the adversarial examples are from')
-parser.add_argument('--topk_file', '-t', action='store', required=False, default=None, help='the selected perfect cases that were used for attack.')
+parser.add_argument('--topk_file', '-k', action='store', required=False, default=None, help='the selected perfect cases that were used for attack.')
 args = parser.parse_args()
 
 topk_filename = args.topk_file

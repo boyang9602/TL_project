@@ -101,7 +101,7 @@ def cls_gt_score_loss(gt_idx, scores_vec, gt_preferred):
 def handle_args():
     parser = argparse.ArgumentParser(description='Run the non target attacks')
     parser.add_argument('--dataset', '-ds', action='store', required=True, help='the dataset.')
-    parser.add_argument('--topk_file', '-f', action='store', required=False, default=None, help='the selected perfect cases.')
+    parser.add_argument('--topk_file', '-k', action='store', required=False, default=None, help='the selected perfect cases.')
     parser.add_argument('--path', '-p', action='store', required=False, default=None, help='the output path.')
 
     parser.add_argument('--eps', '-e', action='store', required=False, default=16, type=int)

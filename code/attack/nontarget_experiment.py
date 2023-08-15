@@ -4,19 +4,13 @@ import pickle
 import argparse
 import torch
 import torch.nn.functional as F
-from tools.utils import IoU_multi, IoG_single, load_topk_idxs
+from tools.utils import IoU_multi, IoG_single, load_topk_idxs, convert_labels_to_nums
 from models.pipeline4attack import load_pipeline
 from tools.dataset import get_dataset
 import attack.adversarial as adversarial
 
 TL_TYPES = ['UNK', 'VERT', 'QUAD', 'HORI']
 COLOR_LABELS = ["off", "red", "yellow", "green"]
-
-def convert_labels_to_nums(labels, label_list):
-    ret = []
-    for label in labels:
-        ret.append(label_list.index(label))
-    return ret
 
 def objective(boxes, colors, inferred_tl_types, output, loss_fns):
     """
@@ -93,7 +87,7 @@ def cls_gt_score_loss(gt_idx, scores_vec):
 def handle_args():
     parser = argparse.ArgumentParser(description='Run the non target attacks')
     parser.add_argument('--dataset', '-ds', action='store', required=True, help='the dataset.')
-    parser.add_argument('--topk_file', '-f', action='store', required=False, default=None, help='the selected perfect cases.')
+    parser.add_argument('--topk_file', '-k', action='store', required=False, default=None, help='the selected perfect cases.')
     parser.add_argument('--path', '-p', action='store', required=False, default=None, help='the output path.')
 
     parser.add_argument('--eps', '-e', action='store', required=False, default=16, type=int)

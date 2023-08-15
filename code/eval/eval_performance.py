@@ -8,11 +8,11 @@ import argparse
 from tools.dataset import get_dataset
 
 parser = argparse.ArgumentParser(description='Evaluate the performance of a dataset.')
-parser.add_argument('--detection', '-d', action='store', required=True, help='the binary file name of the detection results.')
+parser.add_argument('--filename', '-f', action='store', required=True, help='the binary file name of the detection results.')
 parser.add_argument('--dataset', '-ds', action='store', required=True, choices=['S2TLD720', 'S2TLD1080'], help='the dataset name of the detections.')
 args = parser.parse_args()
 
-with open(args.detection, 'rb') as f:
+with open(args.filename, 'rb') as f:
     detections = pickle.load(f)
 color_labels = ["off", "red", "yellow", "green"]
 
