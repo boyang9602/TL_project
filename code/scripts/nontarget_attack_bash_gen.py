@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import argparse
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--output', '-o', action='store', required=False, default='code/scripts/nontargetattack.sh', help='the output attack bash script location.')
+parser.add_argument('--max_iter', '-m', action='store', required=False, default=5, help="the max allowed iteration of attack")
+parser.add_argument('--eps', '-e', action='store', required=False, default=16, help="the max allowed iteration of attack")
+parser.add_argument('--output', '-o', action='store', required=False, default=None, help='the output attack bash script location.')
 args = parser.parse_args()
 sh = """#!/bin/bash
 
@@ -19,7 +21,7 @@ cls_loss_list = [
     # 'cls_gt_score_loss'
 ]
 
-command_prefix = f'python code/attack/nontarget_experiment.py -ds $1'
+command_prefix = f'python code/attack/nontarget_experiment.py -ds $1 -m {args.max_iter} -e {args.eps}'
 
 def make_command(commnad):
     return f'echo {commnad}\n{commnad}\n'
@@ -124,5 +126,8 @@ for box_loss in box_loss_list:
     for cls_loss in cls_loss_list:
         sh += make_command(command_prefix + f' -b {box_loss} -t {cls_loss} -rb {box_loss} -o {cls_loss} -c {cls_loss}')
 
-with open(args.output, 'w') as f:
+output = args.output
+if output is None:
+    output = f'code/scripts/nontargetattack_{args.eps}_{args.max_iter}.sh'
+with open(output, 'w') as f:
     f.write(sh)

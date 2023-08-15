@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import argparse
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--output', '-o', action='store', required=False, default='code/scripts/targetattack.sh', help='the output attack bash script location.')
+parser.add_argument('--max_iter', '-m', action='store', required=False, default=5, help="the max allowed iteration of attack")
+parser.add_argument('--eps', '-e', action='store', required=False, default=16, help="the max allowed iteration of attack")
+parser.add_argument('--output', '-o', action='store', required=False, default=None, help='the output attack bash script location.')
 args = parser.parse_args()
 sh = """#!/bin/bash
 
@@ -25,5 +27,8 @@ sh += '''
 for cls_loss in cls_loss_list:
     sh += make_command(command_prefix + f' -t {cls_loss}')
 
-with open(args.output, 'w') as f:
+output = args.output
+if output is None:
+    output = f'code/scripts/targetattack_{args.eps}_{args.max_iter}.sh'
+with open(output, 'w') as f:
     f.write(sh)
