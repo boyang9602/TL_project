@@ -9,11 +9,6 @@ sh = """#!/bin/bash
 export PYTHONPATH=./code/
 """
 
-box_loss_list = [
-    'box_smooth_l1_loss',
-    'box_iou_loss'
-]
-
 cls_loss_list = [
     'cls_nll_loss',
     'cls_gt_score_loss'
@@ -29,12 +24,6 @@ sh += '''
 '''
 for cls_loss in cls_loss_list:
     sh += make_command(command_prefix + f' -t {cls_loss}')
-sh += '''
-# RCNN reg loss & cls loss
-'''
-for box_loss in box_loss_list:
-    for cls_loss in cls_loss_list:
-        sh += make_command(command_prefix + f' -b {box_loss} -t {cls_loss}')
 
 with open(args.output, 'w') as f:
     f.write(sh)

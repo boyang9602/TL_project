@@ -62,7 +62,7 @@ def objective(boxes, colors, inferred_tl_types, output, loss_fns):
 
     # for the non-overlapped boxes, increase their confidence scores, and try to keep the box position
     for idx in bad_inds:
-        score += loss_fns['rcnn_reg_loss'](rcnn_boxes[idx], rcnn_boxes[idx].detach().clone(), iou_maxes[idx], True)
+        # score += loss_fns['rcnn_reg_loss'](rcnn_boxes[idx], rcnn_boxes[idx].detach().clone(), iou_maxes[idx], True)
         score += loss_fns['rcnn_cls_loss'](rcnn_scores_argmaxes[idx], rcnn_scores[idx], True)
 
     return score
@@ -108,7 +108,7 @@ def handle_args():
     parser.add_argument('--step_size', '-s', action='store', required=False, default=3, type=int)
     parser.add_argument('--max_iter', '-m', action='store', required=False, default=5, type=int)
 
-    parser.add_argument('--rcnn_reg_loss', '-b', action='store', required=False, default='dummy_loss', help='RCNN box loss function name')
+    # parser.add_argument('--rcnn_reg_loss', '-b', action='store', required=False, default='dummy_loss', help='RCNN box loss function name')
     parser.add_argument('--rcnn_cls_loss', '-t', action='store', required=False, default='dummy_loss', help='RCNN type loss function name')
     # parser.add_argument('--rec_cls_loss', '-c', action='store', required=False, default='dummy_loss', help='Recognizer cls loss function name')
     # parser.add_argument('--rpn_reg_loss', '-rb', action='store', required=False, default='dummy_loss', help='RPN box loss function name')
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     ds = get_dataset(args.dataset, device=device)
 
     loss_fns = {
-        'rcnn_reg_loss': locals()[args.rcnn_reg_loss],
+        # 'rcnn_reg_loss': locals()[args.rcnn_reg_loss],
         'rcnn_cls_loss': locals()[args.rcnn_cls_loss]
     }
 
@@ -154,7 +154,7 @@ if __name__ == '__main__':
         path = args.path
     else:
         path = f'data/adversarial_results/{args.dataset}/target/'
-    filename = f'{path}/{args.rcnn_reg_loss}_{args.rcnn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
+    filename = f'{path}/{args.rcnn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
 
     if not os.path.exists(path):
         os.makedirs(path)
