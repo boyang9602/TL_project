@@ -58,7 +58,9 @@ class S2TLD720Dataset(torch.utils.data.Dataset):
             'colors': colors,
             'inferred_tl_types': self.inferred_tl_types[idx],
             'folder': folder,
-            'filename': filename
+            'filename': filename,
+            'image_file': image_file,
+            'annot_file': annot_file
         }
     
     @staticmethod
@@ -101,7 +103,9 @@ class S2TLD1080Dataset(torch.utils.data.Dataset):
             'boxes': boxes,
             'colors': colors,
             'inferred_tl_types': self.inferred_tl_types[idx],
-            'filename': filename
+            'filename': filename,
+            'image_file': image_file,
+            'annot_file': annot_file
         }
     
     @staticmethod
