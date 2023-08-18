@@ -120,6 +120,18 @@ for box_loss in box_loss_list:
 
 sh += '''
 # RCNN + RPN + rec
+# RCNN + RPN, reg + rec cls
+'''
+for box_loss in box_loss_list:
+    for cls_loss in cls_loss_list:
+        sh += make_command(command_prefix + f' -b {box_loss} -rb {box_loss} -c {cls_loss}')
+sh += '''
+# RCNN + RPN + rec
+# RCNN + RPN, cls + rec cls
+'''
+for cls_loss in cls_loss_list:
+    sh += make_command(command_prefix + f' -t {cls_loss} -rb {box_loss} -o {cls_loss} -c {cls_loss}')
+sh += '''
 # RCNN + RPN, reg + cls, + rec cls
 '''
 for box_loss in box_loss_list:
