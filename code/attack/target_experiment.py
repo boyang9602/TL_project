@@ -60,11 +60,13 @@ def objective(boxes, colors, inferred_tl_types, output, loss_fns):
         else:
             good_inds.append(det_idx)
 
-    # for the non-overlapped boxes, increase their confidence scores, and try to keep the box position
+    # for the non-overlapped boxes, increase their confidence scores
     for idx in bad_inds:
-        # score += loss_fns['rcnn_reg_loss'](rcnn_boxes[idx], rcnn_boxes[idx].detach().clone(), iou_maxes[idx], True)
-        score += loss_fns['rcnn_cls_loss'](rcnn_scores_argmaxes[idx], rcnn_scores[idx], True)
+        score += loss_fns['fab_loss'](rcnn_scores_argmaxes[idx], rcnn_scores[idx], True)
 
+    # for the overlapped boxes, decrease their confidence scores, i.e., increase Unknown scores
+    for idx in bad_inds:
+        score += loss_fns['rm_loss'](TL_TYPES.index('UNK'), rcnn_scores[idx], True)
     return score
 
 def dummy_loss(*args):
@@ -108,11 +110,8 @@ def handle_args():
     parser.add_argument('--step_size', '-s', action='store', required=False, default=3, type=int)
     parser.add_argument('--max_iter', '-m', action='store', required=False, default=5, type=int)
 
-    # parser.add_argument('--rcnn_reg_loss', '-b', action='store', required=False, default='dummy_loss', help='RCNN box loss function name')
-    parser.add_argument('--rcnn_cls_loss', '-t', action='store', required=False, default='dummy_loss', help='RCNN type loss function name')
-    # parser.add_argument('--rec_cls_loss', '-c', action='store', required=False, default='dummy_loss', help='Recognizer cls loss function name')
-    # parser.add_argument('--rpn_reg_loss', '-rb', action='store', required=False, default='dummy_loss', help='RPN box loss function name')
-    # parser.add_argument('--rpn_cls_loss', '-o', action='store', required=False, default='dummy_loss', help='RPN layer objectiveness loss function name')
+    parser.add_argument('--fab_loss', '-f', action='store', required=False, default='dummy_loss', help='target loss function name for fabricating')
+    parser.add_argument('--rm_loss', '-r', action='store', required=False, default='dummy_loss', help='target loss function name for removing')
     args = parser.parse_args()
     return args
 
@@ -125,8 +124,8 @@ if __name__ == '__main__':
     ds = get_dataset(args.dataset, device=device)
 
     loss_fns = {
-        # 'rcnn_reg_loss': locals()[args.rcnn_reg_loss],
-        'rcnn_cls_loss': locals()[args.rcnn_cls_loss]
+        'fab_loss': locals()[args.fab_loss],
+        'rm_loss': locals()[args.rm_loss]
     }
 
     def objective_fn(data_item, output):
@@ -154,7 +153,7 @@ if __name__ == '__main__':
         path = args.path
     else:
         path = f'data/adversarial_results/{args.dataset}/target/'
-    filename = f'{path}/{args.rcnn_cls_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
+    filename = f'{path}/{args.fab_loss}_{args.rm_loss}_{args.eps}_{args.step_size}_{args.max_iter}.bin'
 
     if not os.path.exists(path):
         os.makedirs(path)

@@ -3,6 +3,14 @@
 # attack
 export PYTHONPATH=./code/
 
-# RCNN cls loss only
-echo python code/attack/target_experiment.py -ds $1 -t cls_nll_loss
-python code/attack/target_experiment.py -ds $1 -t cls_nll_loss
+# RCNN cls loss fabricate
+echo python code/attack/target_experiment.py -ds $1 -f cls_nll_loss
+python code/attack/target_experiment.py -ds $1 -f cls_nll_loss
+
+# RCNN cls loss remove
+echo python code/attack/target_experiment.py -ds $1 -r cls_nll_loss
+python code/attack/target_experiment.py -ds $1 -r cls_nll_loss
+
+# RCNN cls loss fabricate +  remove
+echo python code/attack/target_experiment.py -ds $1 -f cls_nll_loss -r cls_nll_loss
+python code/attack/target_experiment.py -ds $1 -f cls_nll_loss -r cls_nll_loss

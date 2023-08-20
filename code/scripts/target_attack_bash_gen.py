@@ -11,21 +11,23 @@ sh = """#!/bin/bash
 export PYTHONPATH=./code/
 """
 
-cls_loss_list = [
-    'cls_nll_loss',
-    # 'cls_gt_score_loss'
-]
-
 command_prefix = f'python code/attack/target_experiment.py -ds $1'
 
 def make_command(commnad):
     return f'echo {commnad}\n{commnad}\n'
 
 sh += '''
-# RCNN cls loss only
+# RCNN cls loss fabricate
 '''
-for cls_loss in cls_loss_list:
-    sh += make_command(command_prefix + f' -t {cls_loss}')
+sh += make_command(command_prefix + f' -f cls_nll_loss')
+sh += '''
+# RCNN cls loss remove
+'''
+sh += make_command(command_prefix + f' -r cls_nll_loss')
+sh += '''
+# RCNN cls loss fabricate +  remove
+'''
+sh += make_command(command_prefix + f' -f cls_nll_loss -r cls_nll_loss')
 
 output = args.output
 if output is None:
