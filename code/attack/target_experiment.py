@@ -65,7 +65,7 @@ def objective(boxes, colors, inferred_tl_types, output, loss_fns):
         score += loss_fns['fab_loss'](rcnn_scores_argmaxes[idx], rcnn_scores[idx], True)
 
     # for the overlapped boxes, decrease their confidence scores, i.e., increase Unknown scores
-    for idx in bad_inds:
+    for idx in good_inds:
         score += loss_fns['rm_loss'](TL_TYPES.index('UNK'), rcnn_scores[idx], True)
     return score
 
