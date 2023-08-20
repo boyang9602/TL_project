@@ -97,8 +97,8 @@ python code/attack/nontarget_experiment.py -ds $1 -m 10 -e 8 -b box_iou_loss -rb
 
 # RCNN + RPN + rec
 # RCNN + RPN, cls + rec cls
-echo python code/attack/nontarget_experiment.py -ds $1 -m 10 -e 8 -t cls_nll_loss -rb box_iou_loss -o cls_nll_loss -c cls_nll_loss
-python code/attack/nontarget_experiment.py -ds $1 -m 10 -e 8 -t cls_nll_loss -rb box_iou_loss -o cls_nll_loss -c cls_nll_loss
+echo python code/attack/nontarget_experiment.py -ds $1 -m 10 -e 8 -t cls_nll_loss -o cls_nll_loss -c cls_nll_loss
+python code/attack/nontarget_experiment.py -ds $1 -m 10 -e 8 -t cls_nll_loss -o cls_nll_loss -c cls_nll_loss
 
 # RCNN + RPN, reg + cls, + rec cls
 echo python code/attack/nontarget_experiment.py -ds $1 -m 10 -e 8 -b box_smooth_l1_loss -t cls_nll_loss -rb box_smooth_l1_loss -o cls_nll_loss -c cls_nll_loss
