@@ -28,12 +28,12 @@ bash ./code/scripts/"$attack_type"attack.sh $dataset $eps $max_iter
 mkdir -p ~/data/adversarial_results/
 cp -r data/adversarial_results/* ~/data/adversarial_results/
 
-path=data/adversarial_results/$dataset/nontarget
+path=data/adversarial_results/$dataset/$attack_type
 files=$(ls $path)
 for filename in ${files[@]}; do
     input=$path/$filename
     filename="${filename%.*}"
-    output=data/inferences/$dataset/nontarget/$filename"_detection_results".bin
+    output=data/inferences/$dataset/$attack_type/$filename"_detection_results".bin
     echo python code/inference/adv_examples_inference.py -ds $dataset -f $input -o $output
     python code/inference/adv_examples_inference.py -ds $dataset -f $input -o $output
 done
