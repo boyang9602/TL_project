@@ -1,6 +1,6 @@
 #!/bin/bash
 
-tar -cf TL_project.tar TL_project/
+tar -cf TL_project.tar -C ~/ TL_project/
 
 datasets=(720 1080)
 attack_types=(nontarget target)
