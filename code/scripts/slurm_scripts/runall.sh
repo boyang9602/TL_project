@@ -2,7 +2,7 @@
 
 tar -cf TL_project.tar -C ~/ TL_project/
 
-datasets=(720 1080)
+datasets=(S2TLD720 S2TLD1080)
 attack_types=(nontarget target)
 epss=(16 8)
 max_iters=(5 10)
