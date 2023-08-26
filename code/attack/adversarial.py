@@ -1,13 +1,5 @@
 import torch
 
-def process_adv_img(img, adv_img, eps):
-    """project the perturbations, not exceeds -eps and eps, new img not exceed 0-255"""
-    adv_img = torch.clamp(adv_img.detach().clone(), 0, 255)
-    perturbation = adv_img - img
-    perturbation = torch.clamp(perturbation, -eps, eps)
-    adv_img = img + perturbation
-    return adv_img
-
 def adversarial(model, data_item, objective_fn, step_size=3, eps=16, budget=5):
     """
     This is the overall framework
@@ -26,23 +18,23 @@ def adversarial(model, data_item, objective_fn, step_size=3, eps=16, budget=5):
     colors = data_item['colors']
 
     # init adv_img
-    adv_img = image.detach().clone() + torch.empty_like(image.type(torch.float)).uniform_(-eps, eps)
+    adv_img = image + torch.empty_like(image.type(torch.float)).uniform_(-eps, eps)
     # clamp if the pixel value is out of range
-    adv_img = torch.clamp(adv_img.detach().clone(), 0, 255).requires_grad_()
-
+    adv_img = torch.clamp(adv_img, 0, 255).requires_grad_()
     iter_num = 0
     while iter_num < budget:
-        optimizer = torch.optim.Adam([adv_img], lr=step_size)
-        optimizer.zero_grad()
         output  = model(adv_img, boxes)
-
         score = objective_fn(data_item, output)
 
         if type(score) == int and score == 0:
-            return process_adv_img(adv_img.detach().clone(), adv_img.detach().clone(), eps)
+            return adv_img.detach()
 
-        score.backward()
-        optimizer.step()
+        grad = torch.autograd.grad(score, adv_img)[0]
+        adv_img = adv_img.detach() + step_size * grad.sign()
+
+        # clamp if eps is out of bounds
+        perturbation = torch.clamp(adv_img - image, -eps, eps)
+        adv_img = image + perturbation
+        adv_img = torch.clamp(adv_img, 0, 255).requires_grad_()
         iter_num += 1
-        adv_img = process_adv_img(adv_img.detach().clone(), adv_img.detach().clone(), eps).requires_grad_()
     return adv_img
