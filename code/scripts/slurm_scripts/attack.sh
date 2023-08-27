@@ -38,5 +38,5 @@ for filename in ${files[@]}; do
     python code/inference/adv_examples_inference.py -ds $dataset -f $input -o $output
 done
 
-mkdir -p ~/data/adversarial_results/
+mkdir -p ~/data/inferences/
 cp -r data/inferences/* ~/data/inferences/
