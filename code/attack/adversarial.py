@@ -30,11 +30,11 @@ def adversarial(model, data_item, objective_fn, step_size=3, eps=16, budget=5):
             return adv_img.detach()
 
         grad = torch.autograd.grad(score, adv_img)[0]
-        adv_img = adv_img.detach() + step_size * grad.sign()
+        adv_img = adv_img.detach() - step_size * grad.sign()
 
         # clamp if eps is out of bounds
         perturbation = torch.clamp(adv_img - image, -eps, eps)
         adv_img = image + perturbation
         adv_img = torch.clamp(adv_img, 0, 255).requires_grad_()
         iter_num += 1
-    return adv_img
+    return adv_img.detach()
