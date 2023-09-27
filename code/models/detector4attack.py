@@ -34,10 +34,10 @@ class TLDetector(nn.Module):
         bbox_pred = self.bbox_pred(inner_rois)
         cls_score_softmax = F.softmax(cls_score, dim=1)
         # print(cls_score.shape, cls_score_softmax.shape, bbox_pred.shape)
-        bboxes, rcnn_boxes, rcnn_scores = self.rcnn_proposal(cls_score_softmax, bbox_pred, rois, self.im_info)
+        bboxes, rcnn_boxes, rcnn_scores, corr_rois, objectness_scores = self.rcnn_proposal(cls_score_softmax, bbox_pred, rois, rpn_scores, self.im_info)
         # print(bboxes.shape)
 
-        return bboxes, rois, rpn_scores, rcnn_boxes, rcnn_scores
+        return bboxes, corr_rois, objectness_scores, rcnn_boxes, rcnn_scores
 
 # torch.Size([1, 30, 34, 34]) torch.Size([1, 60, 34, 34]) torch.Size([1, 490, 34, 34])
 # torch.Size([52, 5])

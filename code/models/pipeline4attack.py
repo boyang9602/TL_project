@@ -41,7 +41,6 @@ class Pipeline(nn.Module):
 
         rpn_data = restore_boxes_to_full_image(image, rpn_data, projections)
         rpn_data = torch.vstack(rpn_data).reshape(-1, 7)
-        idxs = nms(rpn_data[:, 1:5], 0.6)
         rpn_data = rpn_data[idxs]
 
         rcnn_boxes = restore_boxes_to_full_image(image, rcnn_boxes, projections, start_col=0)
@@ -81,7 +80,7 @@ class Pipeline(nn.Module):
             recognitions = self.recognize(img, valid_detections, tl_types[valid_inds])
         else:
             recognitions = torch.empty((0, 4), device=self.device)
-        return valid_detections, recognitions, assignments, invalid_detections, rpn_data, rcnn_boxes, rcnn_scores
+        return valid_detections, recognitions, assignments, invalid_detections, rpn_data[valid_inds], rcnn_boxes, rcnn_scores
 
 def load_pipeline(device=None):
     print(f'Loaded the TL pipeline. Device is {device}')
