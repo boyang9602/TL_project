@@ -36,7 +36,7 @@ def objective(boxes, colors, inferred_tl_types, output, loss_fns):
     Target objective. It will find all the detected boxes which do not have intersection with the ground truth in RPN and RCNN layer. 
     For these boxes, it will try to increase their confidence scores.
     """
-    valid_detections, recognitions, assignments, invalid_detections, rpn_data, rcnn_boxes, rcnn_scores = output
+    valid_detections, recognitions, assignments, invalid_detections, rpn_data, rcnn_boxes, rcnn_scores, anchors = output
 
     # rcnn_boxes shape (n, 4, 4), rcnn_scores shape (n, 4)
     assert rcnn_boxes.shape[0] == rcnn_scores.shape[0]
