@@ -72,11 +72,12 @@ class RPNProposalSSD(nn.Module):
         boxes[:, 3::4] = torch.clamp(clone[:, 3::4], 0, height - 1)
         return boxes
 
-    def filter_boxes(self, proposals, scores, num_box, num_class, filter_class, min_size_mode, min_size_h, min_size_w, threshold_score):
+    def filter_boxes(self, proposals, scores, anchors, num_box, num_class, filter_class, min_size_mode, min_size_h, min_size_w, threshold_score):
         # filter cases whose scores are below the threshold
         keep = scores[:, filter_class] > threshold_score
         proposals = proposals[keep]
         scores = scores[keep]
+        anchors = anchors[keep]
 
         # filter out cases whose widths and heights are lower than the min_size_w/h
         ws = proposals[:, 2] - proposals[:, 0] + 1
@@ -91,7 +92,7 @@ class RPNProposalSSD(nn.Module):
             keep += hs >= min_size_h # get the || of boolean
         else:
             raise
-        return proposals[keep], scores[keep]
+        return proposals[keep], scores[keep], anchors[keep]
 
     def forward(self, rpn_cls_prob_reshape, rpn_bbox_pred, im_info):
         """
@@ -139,16 +140,18 @@ class RPNProposalSSD(nn.Module):
         # reshape scores
         scores = rpn_cls_prob_reshape.reshape(2, self.num_anchor_per_point, -1).permute(2, 1, 0).reshape(-1, 2)
 
-        proposals, scores = self.filter_boxes(proposals, scores, num_anchor, 2, 1, self.min_size_mode, self.min_size_h, self.min_size_w, self.threshold_objectness)
+        proposals, scores, anchors = self.filter_boxes(proposals, scores, anchors, num_anchor, 2, 1, self.min_size_mode, self.min_size_h, self.min_size_w, self.threshold_objectness)
 
         # keep max N candidates
         top_indices = torch.topk(scores[:, 1], min(scores.shape[0], self.nms_param['max_candidate_n'])).indices
         proposals = proposals[top_indices]
         scores = scores[top_indices]
+        anchors = anchors[top_indices]
 
         # apply NMS
         nms_indices = nms(proposals, self.nms_param['overlap_ratio'])
         proposals = proposals[nms_indices][:self.nms_param['top_n']]
         scores = scores[nms_indices][:self.nms_param['top_n']]
+        anchors = anchors[nms_indices][:self.nms_param['top_n']]
         proposals = torch.hstack([torch.zeros((proposals.shape[0], 1), device=self.device), proposals])
-        return proposals, scores
+        return proposals, scores, anchors

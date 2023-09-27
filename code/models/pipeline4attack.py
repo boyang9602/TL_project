@@ -25,12 +25,14 @@ class Pipeline(nn.Module):
         rpn_data = []
         rcnn_boxes = []
         rcnn_scores = []
+        anchors_all = []
         projections = boxes2projections(boxes)
         for projection in projections:
             input = preprocess4det(image, projection, self.means_det)
-            bboxes, rpn_boxes, rpn_scores, curr_rcnn_boxes, curr_rcnn_scores = self.detector(input.unsqueeze(0).permute(0, 3, 1, 2))
+            bboxes, rpn_boxes, rpn_scores, anchors, curr_rcnn_boxes, curr_rcnn_scores = self.detector(input.unsqueeze(0).permute(0, 3, 1, 2))
             detected_boxes.append(bboxes)
             rpn_data.append(torch.hstack([rpn_boxes, rpn_scores]))
+            anchors_all.append(anchors)
             rcnn_boxes.append(curr_rcnn_boxes.reshape(-1, 4))
             rcnn_scores.append(curr_rcnn_scores)
 
@@ -42,11 +44,14 @@ class Pipeline(nn.Module):
         rpn_data = restore_boxes_to_full_image(image, rpn_data, projections)
         rpn_data = torch.vstack(rpn_data).reshape(-1, 7)
         rpn_data = rpn_data[idxs]
+        anchors_all = restore_boxes_to_full_image(image, anchors_all, projections, start_col=0)
+        anchors_all = torch.vstack(anchors_all)
+        anchors_all = anchors_all[idxs]
 
         rcnn_boxes = restore_boxes_to_full_image(image, rcnn_boxes, projections, start_col=0)
         rcnn_boxes = torch.vstack(rcnn_boxes).reshape(-1, 4, 4)
         rcnn_scores = torch.vstack(rcnn_scores).reshape(-1, 4)
-        return detections, rpn_data, rcnn_boxes, rcnn_scores
+        return detections, rpn_data, rcnn_boxes, rcnn_scores, anchors_all
     def recognize(self, img, detections, tl_types):
         recognitions = []
         for detection, tl_type in zip(detections, tl_types):
@@ -69,7 +74,7 @@ class Pipeline(nn.Module):
                 torch.empty((0, 7), device=self.device), \
                 torch.empty((0, 4, 4), device=self.device), \
                 torch.empty((0, 4), device=self.device)
-        detections, rpn_data, rcnn_boxes, rcnn_scores = self.detect(img, boxes)
+        detections, rpn_data, rcnn_boxes, rcnn_scores, anchors = self.detect(img, boxes)
         tl_types = torch.argmax(detections[:, 5:], dim=1)
         valid_inds = tl_types != 0
         valid_detections = detections[valid_inds]
@@ -80,7 +85,7 @@ class Pipeline(nn.Module):
             recognitions = self.recognize(img, valid_detections, tl_types[valid_inds])
         else:
             recognitions = torch.empty((0, 4), device=self.device)
-        return valid_detections, recognitions, assignments, invalid_detections, rpn_data[valid_inds], rcnn_boxes, rcnn_scores
+        return valid_detections, recognitions, assignments, invalid_detections, rpn_data[valid_inds], rcnn_boxes, rcnn_scores, anchors[valid_inds]
 
 def load_pipeline(device=None):
     print(f'Loaded the TL pipeline. Device is {device}')

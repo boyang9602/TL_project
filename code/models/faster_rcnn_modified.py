@@ -60,7 +60,7 @@ class RCNNProposal(nn.Module):
         boxes[:, 3] = torch.clamp(clone[:, 3], 0, height - 1)
         return boxes
 
-    def forward(self, cls_score_softmax, bbox_pred, rois, objectness_scores, im_info):
+    def forward(self, cls_score_softmax, bbox_pred, rois, objectness_scores, anchors, im_info):
         origin_height = im_info[0]
         origin_width = im_info[1]
         # normalize the rois
@@ -88,6 +88,7 @@ class RCNNProposal(nn.Module):
         decoded_bbox_pred = decoded_bbox_pred[indices]
         corr_rois = rois[indices]
         objectness_scores = objectness_scores[indices]
+        anchors = anchors[indices]
 
         maxes, argmaxes = torch.max(cls_score_softmax[:,1:], 1) # => max: n, argmax: n
         argmaxes += 1
@@ -102,6 +103,7 @@ class RCNNProposal(nn.Module):
         decoded_bbox_pred = decoded_bbox_pred[torch.arange(decoded_bbox_pred.shape[0]), argmaxes] # => (n, 4)
         corr_rois = corr_rois[indices]
         objectness_scores = objectness_scores[indices]
+        anchors = anchors[indices]
 
         w = decoded_bbox_pred[:, 2] - decoded_bbox_pred[:, 0] + 1
         h = decoded_bbox_pred[:, 3] - decoded_bbox_pred[:, 1] + 1
@@ -114,6 +116,7 @@ class RCNNProposal(nn.Module):
         cls_score_softmax = cls_score_softmax[keep]
         corr_rois = corr_rois[keep]
         objectness_scores = objectness_scores[keep]
+        anchors = anchors[keep]
 
         # keep max N candidates
         num_keep = min(maxes[keep].shape[0], self.nms_param['max_candidate_n'])
@@ -122,6 +125,7 @@ class RCNNProposal(nn.Module):
         pre_nms_all_probs = cls_score_softmax[top_indices]
         corr_rois = corr_rois[top_indices]
         objectness_scores = objectness_scores[top_indices]
+        anchors = anchors[top_indices]
 
         argmaxes = torch.argmax(pre_nms_all_probs[:,1:], 1) + 1
 
@@ -130,4 +134,5 @@ class RCNNProposal(nn.Module):
         scores = pre_nms_all_probs[nms_indices][:self.nms_param['top_n']]
         corr_rois = corr_rois[nms_indices][:self.nms_param['top_n']]
         objectness_scores = objectness_scores[nms_indices][:self.nms_param['top_n']]
-        return torch.hstack([torch.zeros((boxes.shape[0], 1), device=self.device), boxes, scores]), all_boxes, all_scores, corr_rois, objectness_scores
+        anchors = anchors[nms_indices][:self.nms_param['top_n']]
+        return torch.hstack([torch.zeros((boxes.shape[0], 1), device=self.device), boxes, scores]), all_boxes, all_scores, corr_rois, objectness_scores, anchors

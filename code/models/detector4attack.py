@@ -24,7 +24,7 @@ class TLDetector(nn.Module):
     def forward(self, x):
         rpn_cls_prob_reshape, rpn_bbox_pred, ft_add_left_right = self.feature_net(x)
         # print(rpn_cls_prob_reshape.shape, rpn_bbox_pred.shape, ft_add_left_right.shape)
-        rois, rpn_scores = self.proposal(rpn_cls_prob_reshape, rpn_bbox_pred, self.im_info)
+        rois, rpn_scores, anchors = self.proposal(rpn_cls_prob_reshape, rpn_bbox_pred, self.im_info)
         # print(rois.shape)
         psroi_rois = self.psroi_rois(ft_add_left_right, rois)
         # print(psroi_rois.shape)
@@ -34,10 +34,10 @@ class TLDetector(nn.Module):
         bbox_pred = self.bbox_pred(inner_rois)
         cls_score_softmax = F.softmax(cls_score, dim=1)
         # print(cls_score.shape, cls_score_softmax.shape, bbox_pred.shape)
-        bboxes, rcnn_boxes, rcnn_scores, corr_rois, objectness_scores = self.rcnn_proposal(cls_score_softmax, bbox_pred, rois, rpn_scores, self.im_info)
+        bboxes, rcnn_boxes, rcnn_scores, corr_rois, objectness_scores, anchors = self.rcnn_proposal(cls_score_softmax, bbox_pred, rois, rpn_scores, anchors, self.im_info)
         # print(bboxes.shape)
 
-        return bboxes, corr_rois, objectness_scores, rcnn_boxes, rcnn_scores
+        return bboxes, corr_rois, objectness_scores, anchors, rcnn_boxes, rcnn_scores
 
 # torch.Size([1, 30, 34, 34]) torch.Size([1, 60, 34, 34]) torch.Size([1, 490, 34, 34])
 # torch.Size([52, 5])
