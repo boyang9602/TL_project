@@ -4,7 +4,7 @@ tar -cf TL_project.tar -C ~/ TL_project/
 
 datasets=(S2TLD720 S2TLD1080)
 attack_types=(nontarget)
-epss=(16 8)
+epss=(16 8 4 2)
 max_iters=(5 10)
 
 for attack_type in ${attack_types[@]}; do

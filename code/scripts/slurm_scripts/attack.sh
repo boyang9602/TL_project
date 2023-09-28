@@ -3,7 +3,7 @@
 #SBATCH --account=b_yang20
 #SBATCH --mem=10G
 #SBATCH --mail-type=FAIL,END
-#SBATCH --gpus=10gb:1
+#SBATCH --gpus=1
 #SBATCH --mail-user=boyang9602@gmail.com
 
 attack_type=$1

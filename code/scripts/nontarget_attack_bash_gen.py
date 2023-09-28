@@ -27,11 +27,11 @@ sh += '''
 '''
 for box_loss in box_loss_list:
     sh += make_command(command_prefix + f' -b {box_loss}')
-# sh += '''
-# # RCNN cls loss only
-# '''
-# for cls_loss in cls_loss_list:
-#     sh += make_command(command_prefix + f' -t {cls_loss}')
+sh += '''
+# RCNN cls loss only
+'''
+for cls_loss in cls_loss_list:
+    sh += make_command(command_prefix + f' -t {cls_loss}')
 sh += '''
 # RCNN reg loss & cls loss
 '''
@@ -45,11 +45,11 @@ sh += '''
 '''
 for box_loss in box_loss_list:
     sh += make_command(command_prefix + f' -rb {box_loss}')
-# sh += '''
-# # RPN cls only
-# '''
-# for cls_loss in cls_loss_list:
-#     sh += make_command(command_prefix + f' -o {cls_loss}')
+sh += '''
+# RPN cls only
+'''
+for cls_loss in cls_loss_list:
+    sh += make_command(command_prefix + f' -o {cls_loss}')
 sh += '''
 # RPN reg loss & cls loss
 '''
@@ -63,11 +63,11 @@ sh += '''
 '''
 for box_loss in box_loss_list:
     sh += make_command(command_prefix + f' -b {box_loss} -rb {box_loss}')
-# sh += '''
-# # RCNN + RPN cls loss
-# '''
-# for cls_loss in cls_loss_list:
-#     sh += make_command(command_prefix + f' -t {cls_loss} -o {cls_loss}')
+sh += '''
+# RCNN + RPN cls loss
+'''
+for cls_loss in cls_loss_list:
+    sh += make_command(command_prefix + f' -t {cls_loss} -o {cls_loss}')
 sh += '''
 # RCNN + RPN reg + cls
 '''
@@ -82,11 +82,11 @@ sh += '''
 for box_loss in box_loss_list:
     for cls_loss in cls_loss_list:
         sh += make_command(command_prefix + f' -b {box_loss} -c {cls_loss}')
-# sh += '''
-# # RCNN cls + rec cls
-# '''
-# for cls_loss in cls_loss_list:
-#     sh += make_command(command_prefix + f' -t {cls_loss} -c {cls_loss}')
+sh += '''
+# RCNN cls + rec cls
+'''
+for cls_loss in cls_loss_list:
+    sh += make_command(command_prefix + f' -t {cls_loss} -c {cls_loss}')
 sh += '''
 # RCNN reg + cls, + rec cls
 '''
@@ -101,17 +101,17 @@ sh += '''
 for box_loss in box_loss_list:
     for cls_loss in cls_loss_list:
         sh += make_command(command_prefix + f' -rb {box_loss} -c {cls_loss}')
-# sh += '''
-# # RPN cls + rec cls
-# '''
-# for cls_loss in cls_loss_list:
-#     sh += make_command(command_prefix + f' -o {cls_loss} -c {cls_loss}')
-# sh += '''
-# # RPN reg + cls, + rec cls
-# '''
-# for box_loss in box_loss_list:
-#     for cls_loss in cls_loss_list:
-#         sh += make_command(command_prefix + f' -rb {box_loss} -o {cls_loss} -c {cls_loss}')
+sh += '''
+# RPN cls + rec cls
+'''
+for cls_loss in cls_loss_list:
+    sh += make_command(command_prefix + f' -o {cls_loss} -c {cls_loss}')
+sh += '''
+# RPN reg + cls, + rec cls
+'''
+for box_loss in box_loss_list:
+    for cls_loss in cls_loss_list:
+        sh += make_command(command_prefix + f' -rb {box_loss} -o {cls_loss} -c {cls_loss}')
 
 sh += '''
 # RCNN + RPN + rec
@@ -120,12 +120,12 @@ sh += '''
 for box_loss in box_loss_list:
     for cls_loss in cls_loss_list:
         sh += make_command(command_prefix + f' -b {box_loss} -rb {box_loss} -c {cls_loss}')
-# sh += '''
-# # RCNN + RPN + rec
-# # RCNN + RPN, cls + rec cls
-# '''
-# for cls_loss in cls_loss_list:
-#     sh += make_command(command_prefix + f' -t {cls_loss} -o {cls_loss} -c {cls_loss}')
+sh += '''
+# RCNN + RPN + rec
+# RCNN + RPN, cls + rec cls
+'''
+for cls_loss in cls_loss_list:
+    sh += make_command(command_prefix + f' -t {cls_loss} -o {cls_loss} -c {cls_loss}')
 sh += '''
 # RCNN + RPN, reg + cls, + rec cls
 '''
