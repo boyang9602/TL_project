@@ -1,6 +1,7 @@
 # TL project
 
 This is a project for doing adversarial attack against Baidu Apollo's TL detection, selection and recognition pipeline. 
+For data, please check https://zenodo.org/doi/10.5281/zenodo.8390340. 
 
 ## File lists
 
