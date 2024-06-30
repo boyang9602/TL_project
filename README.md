@@ -3,6 +3,8 @@
 This is a project for doing adversarial attack against Baidu Apollo's TL detection, selection and recognition pipeline. 
 For data, please check https://zenodo.org/doi/10.5281/zenodo.8390340. 
 
+Check https://github.com/boyang9602/TLR-replicate/ if you only need to use Apollo TLR in Python & Pytorch.
+
 ## File lists
 
 1. code/models/: the replicated models as well as the weights 
